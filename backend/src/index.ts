@@ -7,6 +7,9 @@ import authRoutes from './routes/auth';
 import householdRoutes from './routes/households';
 import uploadRoutes from './routes/upload';
 import receiptRoutes from './routes/receipts';
+import productRoutes from './routes/products';
+import storeRoutes from './routes/stores';
+import analyticsRoutes from './routes/analytics';
 
 dotenv.config();
 
@@ -27,6 +30,9 @@ app.use('/auth', authRoutes);
 app.use('/households', householdRoutes);
 app.use('/upload', uploadRoutes);
 app.use('/receipts', receiptRoutes);
+app.use('/products', productRoutes);
+app.use('/stores', storeRoutes);
+app.use('/analytics', analyticsRoutes);
 
 const PORT = process.env.PORT || 3000;
 
