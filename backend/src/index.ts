@@ -6,6 +6,7 @@ import path from 'path';
 import authRoutes from './routes/auth';
 import householdRoutes from './routes/households';
 import uploadRoutes from './routes/upload';
+import receiptRoutes from './routes/receipts';
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.get('/health', (_req, res) => {
 app.use('/auth', authRoutes);
 app.use('/households', householdRoutes);
 app.use('/upload', uploadRoutes);
+app.use('/receipts', receiptRoutes);
 
 const PORT = process.env.PORT || 3000;
 
