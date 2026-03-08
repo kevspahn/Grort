@@ -13,6 +13,7 @@ export interface ReceiptRow {
   image_url: string;
   raw_ai_response: unknown;
   created_at: Date;
+  store_name?: string | null;
 }
 
 export interface ReceiptItemRow {
@@ -69,7 +70,13 @@ export const receiptRepository = {
   },
 
   async findById(id: string): Promise<ReceiptRow | null> {
-    const { rows } = await pool.query('SELECT * FROM receipts WHERE id = $1', [id]);
+    const { rows } = await pool.query(
+      `SELECT r.*, s.name as store_name
+       FROM receipts r
+       LEFT JOIN stores s ON r.store_id = s.id
+       WHERE r.id = $1`,
+      [id]
+    );
     return rows[0] || null;
   },
 

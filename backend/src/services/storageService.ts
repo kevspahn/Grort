@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const LOCAL_UPLOAD_DIR = path.join(__dirname, '../../uploads');
+const LOCAL_SERVER_PORT = process.env.PORT || '3000';
 
 function isLocalMode(): boolean {
   return process.env.STORAGE_MODE === 'local';
@@ -65,7 +66,7 @@ export const storageService = {
   async getSignedUrl(imageUrl: string): Promise<string> {
     if (imageUrl.startsWith('local://')) {
       const key = imageUrl.replace('local://', '');
-      return `http://localhost:3000/uploads/${key}`;
+      return `http://localhost:${LOCAL_SERVER_PORT}/uploads/${key}`;
     }
 
     const match = imageUrl.match(/^s3:\/\/([^/]+)\/(.+)$/);

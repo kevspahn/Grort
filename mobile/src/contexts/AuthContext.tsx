@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import * as SecureStore from 'expo-secure-store';
 import apiClient from '../api/client';
+import { deleteAuthItem, getAuthItem, setAuthItem } from '../lib/authStorage';
 
 interface User {
   id: string;
@@ -23,6 +23,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+async function fetchCurrentUser(authToken: string): Promise<User> {
+  const response = await apiClient.get('/auth/me', {
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+    },
+  });
+
+  return response.data.user as User;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -34,22 +44,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function loadStoredAuth() {
     try {
-      const storedToken = await SecureStore.getItemAsync('auth_token');
-      const storedUser = await SecureStore.getItemAsync('auth_user');
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+      const storedToken = await getAuthItem('auth_token');
+      if (storedToken) {
+        const currentUser = await fetchCurrentUser(storedToken);
+        await storeAuth(storedToken, currentUser);
+      } else {
+        setToken(null);
+        setUser(null);
       }
     } catch (err) {
-      // Silently fail -- user will need to login
+      await deleteAuthItem('auth_token');
+      await deleteAuthItem('auth_user');
+      setToken(null);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
   }
 
   async function storeAuth(authToken: string, authUser: User) {
-    await SecureStore.setItemAsync('auth_token', authToken);
-    await SecureStore.setItemAsync('auth_user', JSON.stringify(authUser));
+    await setAuthItem('auth_token', authToken);
+    await setAuthItem('auth_user', JSON.stringify(authUser));
     setToken(authToken);
     setUser(authUser);
   }
@@ -70,8 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
-    await SecureStore.deleteItemAsync('auth_token');
-    await SecureStore.deleteItemAsync('auth_user');
+    await deleteAuthItem('auth_token');
+    await deleteAuthItem('auth_user');
     setToken(null);
     setUser(null);
   }
@@ -79,12 +94,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function refreshUser() {
     if (token) {
       try {
-        const storedUser = await SecureStore.getItemAsync('auth_user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
+        const currentUser = await fetchCurrentUser(token);
+        await storeAuth(token, currentUser);
       } catch {
-        // ignore
+        await logout();
       }
     }
   }

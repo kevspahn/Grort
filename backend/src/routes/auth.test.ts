@@ -3,6 +3,12 @@ import request from 'supertest';
 import app from '../index';
 import pool from '../db/pool';
 
+function createFakeGoogleIdToken(payload: Record<string, unknown>) {
+  const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${header}.${body}.signature`;
+}
+
 describe('Auth routes', () => {
   beforeAll(async () => {
     await pool.query("DELETE FROM users WHERE email LIKE '%@test-routes.com'");
@@ -52,6 +58,64 @@ describe('Auth routes', () => {
         .post('/auth/login')
         .send({ email: 'new@test-routes.com', password: 'wrong' });
       expect(res.status).toBe(401);
+    });
+  });
+
+  describe('GET /auth/me', () => {
+    it('returns the authenticated user', async () => {
+      const loginRes = await request(app)
+        .post('/auth/login')
+        .send({ email: 'new@test-routes.com', password: 'password123' });
+
+      const res = await request(app)
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${loginRes.body.token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.email).toBe('new@test-routes.com');
+    });
+  });
+
+  describe('POST /auth/google', () => {
+    it('rejects mismatched Google token claims', async () => {
+      const idToken = createFakeGoogleIdToken({
+        sub: 'google-123',
+        email: 'actual@test-routes.com',
+        name: 'Actual User',
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
+
+      const res = await request(app)
+        .post('/auth/google')
+        .send({
+          idToken,
+          googleId: 'google-123',
+          email: 'spoofed@test-routes.com',
+          name: 'Actual User',
+        });
+
+      expect(res.status).toBe(401);
+    });
+
+    it('accepts matching Google token claims', async () => {
+      const idToken = createFakeGoogleIdToken({
+        sub: 'google-456',
+        email: 'google@test-routes.com',
+        name: 'Google User',
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
+
+      const res = await request(app)
+        .post('/auth/google')
+        .send({
+          idToken,
+          googleId: 'google-456',
+          email: 'google@test-routes.com',
+          name: 'Google User',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.email).toBe('google@test-routes.com');
     });
   });
 });

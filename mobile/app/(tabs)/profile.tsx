@@ -15,7 +15,7 @@ interface HouseholdMember {
 }
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [householdName, setHouseholdName] = useState('');
@@ -49,9 +49,11 @@ export default function ProfileScreen() {
     }
     try {
       await apiClient.post('/households', { name: householdName });
+      await refreshUser();
       setHouseholdName('');
       setIsCreatingHousehold(false);
-      Alert.alert('Success', 'Household created! Please sign in again to see changes.');
+      loadMembers();
+      Alert.alert('Success', 'Household created.');
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.error || 'Failed to create household');
     }

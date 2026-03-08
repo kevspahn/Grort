@@ -4,6 +4,7 @@ import path from 'path';
 
 // Set local mode for testing
 process.env.STORAGE_MODE = 'local';
+process.env.PORT = '3001';
 
 import { storageService } from './storageService';
 
@@ -27,7 +28,7 @@ describe('storageService (local mode)', () => {
     const buffer = Buffer.from('fake-image-data');
     const url = await storageService.uploadImage(buffer, 'image/jpeg', 'test2.jpg');
     const signedUrl = await storageService.getSignedUrl(url);
-    expect(signedUrl).toMatch(/^http:\/\/localhost:3000\/uploads\/receipts\//);
+    expect(signedUrl).toMatch(/^http:\/\/localhost:3001\/uploads\/receipts\//);
   });
 
   it('deletes a local image', async () => {
