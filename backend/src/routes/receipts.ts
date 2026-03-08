@@ -6,6 +6,7 @@ import { receiptProcessingService } from '../services/receiptProcessingService';
 import { receiptRepository } from '../repositories/receiptRepository';
 import { ReceiptsQuerySchema, UpdateReceiptItemSchema } from '../shared/schemas';
 import { ZodError } from 'zod';
+import { ReceiptParseError } from '../ai/parseResponse';
 
 const router = Router();
 router.use(authMiddleware);
@@ -56,6 +57,10 @@ router.post('/scan', (req, res, next) => {
     res.status(201).json(result);
   } catch (err) {
     console.error('Receipt scan error:', err);
+    if (err instanceof ReceiptParseError) {
+      res.status(err.statusCode).json({ error: err.message });
+      return;
+    }
     if (err instanceof Error) {
       res.status(500).json({ error: `Receipt processing failed: ${err.message}` });
       return;

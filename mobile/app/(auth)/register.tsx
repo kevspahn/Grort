@@ -16,6 +16,10 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleRegister() {
+    if (isLoading) {
+      return;
+    }
+
     if (!name || !email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -51,7 +55,7 @@ export default function RegisterScreen() {
           <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
           <TextInput style={styles.input} placeholder="Password (min 8 characters)" value={password} onChangeText={setPassword} secureTextEntry />
           <TextInput style={styles.input} placeholder="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
-          <TouchableOpacity style={[styles.button, isLoading && styles.buttonDisabled]} onPress={handleRegister} disabled={isLoading}>
+          <TouchableOpacity style={[styles.button, isLoading && styles.buttonDisabled]} onPress={handleRegister}>
             {isLoading ? <ActivityIndicator color={colors.textOnPrimary} /> : <Text style={styles.buttonText}>Sign Up</Text>}
           </TouchableOpacity>
           <Link href="/(auth)/login" asChild>

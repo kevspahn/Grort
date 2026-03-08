@@ -42,7 +42,7 @@ Executed locally:
 Results:
 
 - Migrations completed successfully.
-- Backend test suite is green: `24` test files, `86` tests passed.
+- Backend test suite is green: `25` test files, `92` tests passed.
 
 This materially changes the earlier assessment: the backend is not currently failing on product logic in local development, it was failing only because Grort's PostgreSQL service was not running yet.
 
@@ -66,6 +66,8 @@ Results:
   - analytics trends rendering
   - prices list
   - product detail rendering
+  - trends web fallback rendering without the chart stack
+  - product detail web fallback rendering without the chart stack
   - scan endpoint runtime path with a non-receipt image
   - unauthenticated direct deep-link to protected routes now redirects to login
 
@@ -78,6 +80,16 @@ Issues found and fixed during verification:
 - stale backend process on `3001` was serving older auth code without `/auth/me`
 - receipt detail was missing joined `store_name`
 - local upload signed URLs were using the wrong local backend port
+- non-receipt scan responses from AI providers were falling through to generic `500` errors instead of a user-facing `422`
+- React Native Web chart pages were using `react-native-chart-kit`, which was the source of the earlier web-only chart warnings
+
+Additional current verification:
+
+- A non-receipt image now returns `422 Unprocessable Entity` with:
+  - `Image does not appear to be a grocery receipt`
+- Trends and product detail now render list-style web fallbacks instead of chart components on web.
+- The previous React Native Web `props.pointerEvents` deprecation warning has been eliminated.
+- Web now uses a Grort-owned tab shell and gallery-only scan flow instead of the default native tab/camera components.
 
 ## What Is Already Done
 
@@ -160,7 +172,6 @@ Implemented mobile auth storage and API client token injection, including web-sa
    - Docker compose still has the obsolete `version` field warning.
    - There is an untracked `backend/Dockerfile` that should either be finished and committed intentionally or discarded later.
    - There is a local modification in `mobile/src/api/client.ts` changing the default API port to `3001`; this is correct for the current Mac setup but should be folded in intentionally.
-   - Chart rendering on React Native Web works, but the current chart stack emits multiple DOM/event-handler warnings in the browser console.
 
 ### Security cleanup
 
@@ -172,8 +183,7 @@ Implemented mobile auth storage and API client token injection, including web-sa
 
 1. Verify receipt scan and review with a real grocery receipt image.
 2. Finish Google auth with real signature verification.
-3. Decide whether to replace or adapt the chart stack for cleaner React Native Web behavior.
-4. Add missing store/product management UX if that is still in scope for this iteration.
+3. Add missing store/product management UX if that is still in scope for this iteration.
 
 ## Current Local Notes
 

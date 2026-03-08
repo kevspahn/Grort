@@ -3,6 +3,7 @@ import { ReceiptParser } from './types';
 import { ReceiptExtractionResult, ReceiptExtractionResultSchema } from '../shared/schemas';
 import { RECEIPT_PARSING_PROMPT } from './promptTemplate';
 import { storageService } from '../services/storageService';
+import { parseReceiptJsonResponse } from './parseResponse';
 
 export class ClaudeReceiptParser implements ReceiptParser {
   readonly providerName = 'claude';
@@ -51,18 +52,7 @@ export class ClaudeReceiptParser implements ReceiptParser {
       throw new Error('Claude returned no text response');
     }
 
-    const jsonStr = textContent.text.trim();
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(jsonStr);
-    } catch {
-      const match = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (match) {
-        parsed = JSON.parse(match[1]);
-      } else {
-        throw new Error(`Failed to parse AI response as JSON: ${jsonStr.substring(0, 200)}`);
-      }
-    }
+    const parsed = parseReceiptJsonResponse(textContent.text);
 
     return ReceiptExtractionResultSchema.parse(parsed);
   }

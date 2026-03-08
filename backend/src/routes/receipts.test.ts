@@ -113,6 +113,7 @@ describe('Receipt routes', () => {
         .set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
       expect(res.body.id).toBe(receiptId);
+      expect(res.body.store_name).toBe('Test Store');
       expect(res.body.items).toHaveLength(2);
     });
 

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions, Platform,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { BarChart, PieChart, LineChart } from 'react-native-chart-kit';
@@ -109,7 +109,18 @@ export default function TrendsScreen() {
       {barData.datasets[0].data.length > 0 && (
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Spending by {period === 'month' ? 'Month' : 'Week'}</Text>
-          <BarChart data={barData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} yAxisLabel="$" yAxisSuffix="" fromZero style={styles.chart} />
+          {Platform.OS === 'web' ? (
+            <View style={styles.listBlock}>
+              {data.periodBreakdown.slice(-6).map((entry) => (
+                <View key={entry.period} style={styles.row}>
+                  <Text style={styles.rowLabel}>{entry.period}</Text>
+                  <Text style={styles.rowValue}>${entry.total.toFixed(2)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <BarChart data={barData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} yAxisLabel="$" yAxisSuffix="" fromZero style={styles.chart} />
+          )}
         </View>
       )}
 
@@ -117,7 +128,18 @@ export default function TrendsScreen() {
       {pieData.length > 0 && (
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Spending by Category</Text>
-          <PieChart data={pieData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} accessor="amount" backgroundColor="transparent" paddingLeft="15" />
+          {Platform.OS === 'web' ? (
+            <View style={styles.listBlock}>
+              {data.categoryBreakdown.slice(0, 8).map((entry) => (
+                <View key={`${entry.categoryId ?? 'none'}-${entry.categoryName}`} style={styles.row}>
+                  <Text style={styles.rowLabel}>{entry.categoryName}</Text>
+                  <Text style={styles.rowValue}>${entry.total.toFixed(2)} ({entry.percentage.toFixed(0)}%)</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <PieChart data={pieData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} accessor="amount" backgroundColor="transparent" paddingLeft="15" />
+          )}
         </View>
       )}
 
@@ -125,7 +147,18 @@ export default function TrendsScreen() {
       {lineData.datasets[0].data.length > 1 && (
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Spending Over Time</Text>
-          <LineChart data={lineData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} yAxisLabel="$" bezier style={styles.chart} />
+          {Platform.OS === 'web' ? (
+            <View style={styles.listBlock}>
+              {data.periodBreakdown.slice(-12).map((entry) => (
+                <View key={`timeline-${entry.period}`} style={styles.row}>
+                  <Text style={styles.rowLabel}>{entry.period}</Text>
+                  <Text style={styles.rowValue}>${entry.total.toFixed(2)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <LineChart data={lineData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} yAxisLabel="$" bezier style={styles.chart} />
+          )}
         </View>
       )}
     </ScrollView>
@@ -148,4 +181,8 @@ const styles = StyleSheet.create({
   chartCard: { backgroundColor: colors.surface, margin: spacing.md, padding: spacing.md, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
   chartTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text, marginBottom: spacing.sm },
   chart: { borderRadius: 8 },
+  listBlock: { gap: spacing.sm },
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border },
+  rowLabel: { flex: 1, marginRight: spacing.md, color: colors.text, fontSize: fontSize.sm },
+  rowValue: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: '600' },
 });

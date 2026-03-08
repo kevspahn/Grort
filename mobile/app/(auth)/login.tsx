@@ -14,6 +14,10 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleLogin() {
+    if (isLoading) {
+      return;
+    }
+
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -39,7 +43,7 @@ export default function LoginScreen() {
         <View style={styles.form}>
           <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
           <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
-          <TouchableOpacity style={[styles.button, isLoading && styles.buttonDisabled]} onPress={handleLogin} disabled={isLoading}>
+          <TouchableOpacity style={[styles.button, isLoading && styles.buttonDisabled]} onPress={handleLogin}>
             {isLoading ? <ActivityIndicator color={colors.textOnPrimary} /> : <Text style={styles.buttonText}>Sign In</Text>}
           </TouchableOpacity>
           <Link href="/(auth)/register" asChild>

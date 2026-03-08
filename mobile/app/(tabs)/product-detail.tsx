@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, ActivityIndicator, Dimensions,
+  View, Text, ScrollView, StyleSheet, ActivityIndicator, Dimensions, Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
@@ -105,7 +105,19 @@ export default function ProductDetailScreen() {
       {priceHistory.dataPoints.length > 0 && (
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Price History</Text>
-          <LineChart data={chartData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} yAxisLabel="$" bezier style={styles.chart} />
+          {Platform.OS === 'web' ? (
+            <View style={styles.listBlock}>
+              {priceHistory.dataPoints.map((point) => (
+                <View key={`${point.storeId}-${point.date}`} style={styles.historyRow}>
+                  <Text style={styles.historyStore}>{point.storeName}</Text>
+                  <Text style={styles.historyMeta}>{point.date}</Text>
+                  <Text style={styles.historyPrice}>${point.price.toFixed(2)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <LineChart data={chartData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} yAxisLabel="$" bezier style={styles.chart} />
+          )}
         </View>
       )}
 
@@ -146,6 +158,11 @@ const styles = StyleSheet.create({
   chartTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text, marginBottom: spacing.sm },
   chart: { borderRadius: 8 },
   comparisonCard: { backgroundColor: colors.surface, margin: spacing.md, padding: spacing.md, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
+  listBlock: { gap: spacing.sm },
+  historyRow: { paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+  historyStore: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
+  historyMeta: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+  historyPrice: { fontSize: fontSize.md, color: colors.primary, fontWeight: '700', marginTop: spacing.xs },
   storeRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   cheapestRow: { backgroundColor: '#E8F5E9', borderRadius: 8, paddingHorizontal: spacing.sm },
   storeColorDot: { width: 12, height: 12, borderRadius: 6, marginRight: spacing.sm },

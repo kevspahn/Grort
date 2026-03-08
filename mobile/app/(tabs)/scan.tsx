@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image,
+  View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image, Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
@@ -20,6 +20,22 @@ export default function ScanScreen() {
       setCapturedImage(result.assets[0].uri);
       await processImage(result.assets[0].uri);
     }
+  }
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.webContainer}>
+        <View style={styles.webCard}>
+          <Text style={styles.webTitle}>Scan</Text>
+          <Text style={styles.webText}>
+            Web uses gallery upload for receipt verification. Camera capture remains available on native devices.
+          </Text>
+          <TouchableOpacity style={styles.button} onPress={pickFromGallery}>
+            <Text style={styles.buttonText}>Choose Receipt Image</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   }
 
   if (!permission) return <View style={styles.container} />;
@@ -127,6 +143,10 @@ const styles = StyleSheet.create({
   buttonText: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: 'bold' },
   secondaryButton: { padding: spacing.md, borderRadius: 8, borderWidth: 1, borderColor: colors.primary, width: '100%', alignItems: 'center' },
   secondaryButtonText: { color: colors.primary, fontSize: fontSize.md },
+  webContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg, backgroundColor: colors.background },
+  webCard: { width: '100%', maxWidth: 520, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: spacing.xl },
+  webTitle: { fontSize: fontSize.xl, fontWeight: 'bold', color: colors.text, marginBottom: spacing.md },
+  webText: { fontSize: fontSize.md, lineHeight: 22, color: colors.textSecondary, marginBottom: spacing.lg },
   processingContainer: { flex: 1, backgroundColor: '#000' },
   previewImage: { flex: 1, resizeMode: 'contain' },
   processingOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' },

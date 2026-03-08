@@ -3,6 +3,7 @@ import { ReceiptParser } from './types';
 import { ReceiptExtractionResult, ReceiptExtractionResultSchema } from '../shared/schemas';
 import { RECEIPT_PARSING_PROMPT } from './promptTemplate';
 import { storageService } from '../services/storageService';
+import { parseReceiptJsonResponse } from './parseResponse';
 
 export class GeminiReceiptParser implements ReceiptParser {
   readonly providerName = 'gemini';
@@ -37,17 +38,7 @@ export class GeminiReceiptParser implements ReceiptParser {
       throw new Error('Gemini returned no content');
     }
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(content.trim());
-    } catch {
-      const match = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (match) {
-        parsed = JSON.parse(match[1]);
-      } else {
-        throw new Error(`Failed to parse AI response as JSON: ${content.substring(0, 200)}`);
-      }
-    }
+    const parsed = parseReceiptJsonResponse(content);
 
     return ReceiptExtractionResultSchema.parse(parsed);
   }
