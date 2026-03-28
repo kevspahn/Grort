@@ -1,19 +1,11 @@
-FROM node:22-slim AS builder
+FROM node:22-slim
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
-
-FROM node:22-slim AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
-COPY --from=builder /app/dist ./dist
-COPY src/db/migrations ./src/db/migrations
+RUN mkdir -p uploads
 
 EXPOSE 3001
 ENV PORT=3001
 
-CMD ["sh", "-c", "node dist/db/migrate.js && node dist/index.js"]
+CMD ["sh", "-c", "npx tsx src/db/migrate.ts && npx tsx src/index.ts"]
