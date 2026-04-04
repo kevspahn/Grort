@@ -23,6 +23,7 @@ export interface ProcessedReceipt {
   id: string;
   storeId: string;
   storeName: string;
+  needsStoreName: boolean;
   receiptDate: string;
   subtotal: number | null;
   tax: number | null;
@@ -40,6 +41,12 @@ export const receiptProcessingService = {
     // Step 1: Parse receipt with AI
     const parser = getReceiptParser();
     const extraction = await parser.parse(imageUrl);
+
+    // Track if store name was missing from AI extraction
+    const needsStoreName = !extraction.storeName;
+    if (needsStoreName) {
+      extraction.storeName = 'Unknown Store';
+    }
 
     // Step 2: Resolve store
     const store = await resolveStore(extraction, householdId);
@@ -125,6 +132,7 @@ export const receiptProcessingService = {
       id: receipt.id,
       storeId: store.id,
       storeName: store.name,
+      needsStoreName,
       receiptDate: extraction.receiptDate,
       subtotal: extraction.subtotal,
       tax: extraction.tax,

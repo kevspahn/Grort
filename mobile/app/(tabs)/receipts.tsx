@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Platform,
 } from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
 import apiClient from '../../src/api/client';
@@ -44,13 +44,19 @@ export default function ReceiptsScreen() {
   function handlePress(receiptId: string) { router.push({ pathname: '/(tabs)/receipt-detail', params: { receiptId } }); }
 
   async function handleDelete(receiptId: string) {
-    Alert.alert('Delete Receipt', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        try { await apiClient.delete(`/receipts/${receiptId}`); setReceipts((prev) => prev.filter((r) => r.id !== receiptId)); }
-        catch { Alert.alert('Error', 'Failed to delete receipt'); }
-      }},
-    ]);
+    if (Platform.OS === 'web') {
+      if (!window.confirm('Delete this receipt?')) return;
+      try { await apiClient.delete(`/receipts/${receiptId}`); setReceipts((prev) => prev.filter((r) => r.id !== receiptId)); }
+      catch { window.alert('Failed to delete receipt'); }
+    } else {
+      Alert.alert('Delete Receipt', 'Are you sure?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: async () => {
+          try { await apiClient.delete(`/receipts/${receiptId}`); setReceipts((prev) => prev.filter((r) => r.id !== receiptId)); }
+          catch { Alert.alert('Error', 'Failed to delete receipt'); }
+        }},
+      ]);
+    }
   }
 
   function renderReceipt({ item }: { item: ReceiptSummary }) {

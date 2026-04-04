@@ -121,7 +121,7 @@ export type ExtractedItem = z.infer<typeof ExtractedItemSchema>;
 
 // ---- AI Extraction Result ----
 export const ReceiptExtractionResultSchema = z.object({
-  storeName: z.string(),
+  storeName: z.string().nullable().default(null),
   storeAddress: z.string().nullable(),
   storeBrand: z.string().nullable(),
   receiptDate: z.string(), // YYYY-MM-DD

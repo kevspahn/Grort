@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Alert, FlatList, TextInput, ScrollView,
+  View, Text, TouchableOpacity, StyleSheet, Alert, FlatList, TextInput, ScrollView, Platform,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
@@ -37,15 +37,27 @@ export default function ProfileScreen() {
   }
 
   async function handleLogout() {
-    Alert.alert('Sign Out', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', onPress: async () => { await logout(); router.replace('/(auth)/login'); } },
-    ]);
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to sign out?')) {
+        await logout();
+        router.replace('/(auth)/login');
+      }
+    } else {
+      Alert.alert('Sign Out', 'Are you sure?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign Out', onPress: async () => { await logout(); router.replace('/(auth)/login'); } },
+      ]);
+    }
+  }
+
+  function showAlert(title: string, message: string) {
+    if (Platform.OS === 'web') { window.alert(`${title}: ${message}`); }
+    else { Alert.alert(title, message); }
   }
 
   async function handleCreateHousehold() {
     if (!householdName.trim()) {
-      Alert.alert('Error', 'Please enter a household name');
+      showAlert('Error', 'Please enter a household name');
       return;
     }
     try {
@@ -54,9 +66,9 @@ export default function ProfileScreen() {
       setHouseholdName('');
       setIsCreatingHousehold(false);
       loadMembers();
-      Alert.alert('Success', 'Household created.');
+      showAlert('Success', 'Household created.');
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.error || 'Failed to create household');
+      showAlert('Error', err?.response?.data?.error || 'Failed to create household');
     }
   }
 
@@ -66,25 +78,35 @@ export default function ProfileScreen() {
       await apiClient.post(`/households/${user.householdId}/invite`, { email: inviteEmail });
       setInviteEmail('');
       loadMembers();
-      Alert.alert('Success', 'Member invited');
+      showAlert('Success', 'Member invited');
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.error || 'Failed to invite member');
+      showAlert('Error', err?.response?.data?.error || 'Failed to invite member');
     }
   }
 
   async function handleRemoveMember(memberId: string, memberName: string) {
     if (!user?.householdId) return;
-    Alert.alert('Remove Member', `Remove ${memberName} from household?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: async () => {
-        try {
-          await apiClient.delete(`/households/${user.householdId}/members/${memberId}`);
-          loadMembers();
-        } catch (err: any) {
-          Alert.alert('Error', err?.response?.data?.error || 'Failed to remove member');
-        }
-      }},
-    ]);
+    if (Platform.OS === 'web') {
+      if (!window.confirm(`Remove ${memberName} from household?`)) return;
+      try {
+        await apiClient.delete(`/households/${user.householdId}/members/${memberId}`);
+        loadMembers();
+      } catch (err: any) {
+        showAlert('Error', err?.response?.data?.error || 'Failed to remove member');
+      }
+    } else {
+      Alert.alert('Remove Member', `Remove ${memberName} from household?`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: async () => {
+          try {
+            await apiClient.delete(`/households/${user.householdId}/members/${memberId}`);
+            loadMembers();
+          } catch (err: any) {
+            Alert.alert('Error', err?.response?.data?.error || 'Failed to remove member');
+          }
+        }},
+      ]);
+    }
   }
 
   return (

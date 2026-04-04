@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Alert,
+  View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Alert, Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import apiClient from '../../src/api/client';
@@ -31,9 +31,22 @@ export default function ReceiptReviewScreen() {
   );
 
   const receiptId = receiptData.id;
-  const storeName = receiptData.storeName;
+  const storeId = receiptData.storeId;
+  const [storeName, setStoreName] = useState<string>(receiptData.storeName || '');
+  const [isEditingStore, setIsEditingStore] = useState<boolean>(!!receiptData.needsStoreName);
   const total = receiptData.total;
   const receiptDate = receiptData.receiptDate;
+
+  async function saveStoreName() {
+    if (!storeName.trim()) return;
+    try {
+      await apiClient.put(`/stores/${storeId}`, { name: storeName.trim() });
+      setIsEditingStore(false);
+    } catch {
+      if (Platform.OS === 'web') { window.alert('Failed to save store name'); }
+      else { Alert.alert('Error', 'Failed to save store name'); }
+    }
+  }
 
   function toggleEdit(index: number) {
     setItems((prev) => prev.map((item, i) => i === index ? { ...item, isEditing: !item.isEditing } : item));
@@ -52,7 +65,8 @@ export default function ReceiptReviewScreen() {
       });
       setItems((prev) => prev.map((it, i) => i === index ? { ...it, nameOnReceipt: it.editedName || it.nameOnReceipt, totalPrice: parseFloat(it.editedPrice || '0'), isEditing: false } : it));
     } catch {
-      Alert.alert('Error', 'Failed to save changes');
+      if (Platform.OS === 'web') { window.alert('Failed to save changes'); }
+      else { Alert.alert('Error', 'Failed to save changes'); }
     }
   }
 
@@ -102,7 +116,28 @@ export default function ReceiptReviewScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.storeName}>{storeName}</Text>
+        {isEditingStore ? (
+          <View>
+            <Text style={styles.storePrompt}>Store name couldn't be read from the receipt. Please enter it:</Text>
+            <View style={styles.storeEditRow}>
+              <TextInput
+                style={styles.storeInput}
+                value={storeName}
+                onChangeText={setStoreName}
+                placeholder="Enter store name"
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                autoFocus
+              />
+              <TouchableOpacity style={styles.storeSaveButton} onPress={saveStoreName}>
+                <Text style={styles.storeSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity onPress={() => setIsEditingStore(true)}>
+            <Text style={styles.storeName}>{storeName}</Text>
+          </TouchableOpacity>
+        )}
         <Text style={styles.date}>{receiptDate}</Text>
         <Text style={styles.total}>Total: ${total?.toFixed(2)}</Text>
       </View>
@@ -118,7 +153,12 @@ export default function ReceiptReviewScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: { backgroundColor: colors.primary, padding: spacing.lg, paddingTop: spacing.xl },
-  storeName: { fontSize: fontSize.xl, fontWeight: 'bold', color: colors.textOnPrimary },
+  storeName: { fontSize: fontSize.xl, fontWeight: 'bold', color: colors.textOnPrimary, textDecorationLine: 'underline' },
+  storePrompt: { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.9)', marginBottom: spacing.sm },
+  storeEditRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
+  storeInput: { flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 6, padding: spacing.sm, fontSize: fontSize.lg, color: colors.textOnPrimary, fontWeight: 'bold' },
+  storeSaveButton: { backgroundColor: 'rgba(255,255,255,0.3)', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 6 },
+  storeSaveText: { color: colors.textOnPrimary, fontWeight: 'bold' },
   date: { fontSize: fontSize.sm, color: 'rgba(255,255,255,0.8)', marginTop: spacing.xs },
   total: { fontSize: fontSize.lg, fontWeight: 'bold', color: colors.textOnPrimary, marginTop: spacing.sm },
   sectionTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text, padding: spacing.md },
