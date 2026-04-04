@@ -1,99 +1,118 @@
 # Grort Status
 
-Date: 2026-04-04
+Date: 2026-04-04 (end of session)
 
 ## Summary
 
-Grort is now serving a web frontend at grort.app as a PWA, in addition to the API backend. The Expo web app and Express API run from the same container on the same origin.
-
-## What Changed Since 2026-03-06
-
-### Web PWA (new)
-
-- Expo web app is built and served from the Express backend at grort.app
-- PWA support: web manifest, service worker for offline app shell, standalone display mode
-- Offline banner ("You're offline") shown on web when connectivity is lost
-- Service worker registered from the root layout on web platform
-
-### Mascot Evolution System (new)
-
-- Three mascot tiers based on receipt count:
-  - Baby Grort (0-9 receipts): `grort-v1.png`
-  - Cyber Grort (10-49 receipts): `grort-v2.png`
-  - Mecha Grort (50+ receipts): `grort-v3.png`
-- `/auth/me` now returns `receiptCount` (COUNT from receipts table)
-- `useGrortMascot` hook + `GrortMascot` component
-- Mascot shown on: profile screen (with tier name), loading states, empty states (receipts, trends)
-
-### App Identity
-
-- app.json updated: name "Grort", slug "grort"
-- Icon and splash use `grort-v1.png` mascot
-- PWA theme color: `#2E7D32` (primary green), background: `#F5F5F5`
-
-### Deployment
-
-- Dockerfile moved from `backend/Dockerfile` to repo root (multi-stage build)
-- Stage 1: builds Expo web app (`npx expo export --platform web`)
-- Stage 2: Express backend + web build output in `/app/public`
-- Deploy workflow: builds image in CI, SCPs tarball to droplet, `docker load` + `docker compose up -d grort`
-- No longer uses GHCR for image storage — direct SCP transfer
-- API URL defaults to same-origin (empty string) in production web; mobile/dev uses `EXPO_PUBLIC_API_URL` env var
-
-### Backend
-
-- Express serves static files from `/app/public` when the directory exists
-- Hashed assets: `Cache-Control: public, max-age=1y, immutable`
-- `index.html` and `sw.js`: `Cache-Control: no-cache`
-- Catch-all `GET {*path}` serves `index.html` for client-side routing (Express 5 syntax)
-- API routes registered before static middleware, so they take precedence
-- Google auth service added (`googleAuthService.ts`) with token verification
+Grort is live at grort.app as a PWA. Users can register, log in, scan receipt photos via AI, review extracted data, browse receipts, view spending trends with category/period drill-downs, and track prices. Receipt photos are stored on DigitalOcean Spaces and viewable on each receipt's detail page.
 
 ## Current Architecture
 
-### Deployment pipeline
+### Stack
+
+- **Frontend:** Expo SDK 55 (React Native Web), served as static files from Express
+- **Backend:** Express 5, Node 22, TypeScript, PostgreSQL 16
+- **AI:** Anthropic Claude (configurable to OpenAI/Gemini via `AI_PROVIDER` env var)
+- **Storage:** DigitalOcean Spaces (S3-compatible) for receipt images
+- **Hosting:** DigitalOcean Droplet, Nginx reverse proxy, Let's Encrypt SSL
+
+### Deployment Pipeline
 
 1. Push to `main` triggers `.github/workflows/deploy.yml`
-2. GitHub Actions builds Docker image (multi-stage: Expo web + Express backend)
-3. Image saved as tarball, SCPed to droplet
-4. `docker load` + `docker compose up -d grort` on droplet
+2. GitHub Actions builds Docker image (multi-stage: Expo web export + Express backend)
+3. Image saved as gzipped tarball, SCPed to droplet via `appleboy/scp-action`
+4. SSH: `docker load` + `docker compose up -d grort` on droplet at `~/spahndigital`
+5. Does NOT use GHCR — direct SCP transfer to avoid package permission issues
 
-### What serves what
+### Dockerfile (repo root)
 
-- `grort.app/` — Expo web app (client-side routed)
-- `grort.app/health` — health check endpoint
-- `grort.app/auth/*`, `/receipts`, `/households`, `/upload`, `/products`, `/stores`, `/analytics` — API routes
-- `grort.app/(tabs)/*`, `/(auth)/*` — Expo router paths, served via catch-all as `index.html`
+- Stage 1 (`web-build`): `node:22`, installs mobile deps, runs `npx expo export --platform web`
+- Stage 2: `node:22-slim`, installs backend deps, copies web output to `/app/public`, runs migrations + server
 
-### Local dev ports (unchanged)
+### Droplet Configuration
 
-- Grort backend: `3001`
-- Grort db: `5433`
-- Grort MinIO: `9000` / `9001`
-- Painter's Log: `3000` / `5432` / `5173`
+- Shared droplet with Galerie88 (Painter's Log) at `~/spahndigital`
+- Single PostgreSQL container, init script creates separate databases
+- Nginx routes `grort.app` → `grort:3001`, `spahndigital.com` → `galerie88:3000`
+- Env vars in `~/spahndigital/.env` (Grort vars prefixed `GRORT_`, shared Spaces vars prefixed `SPACES_`)
+- SSH access: `deploy@spahndigital.com` (deploy user, ed25519 key)
+
+### What Serves What
+
+- `grort.app/` — Expo web app (client-side routing via catch-all)
+- `grort.app/health` — health check
+- `grort.app/auth/*`, `/receipts/*`, `/households/*`, `/upload`, `/products/*`, `/stores/*`, `/analytics/*` — API
+- `grort.app/(tabs)/*`, `/(auth)/*` — Expo router paths, served as `index.html`
+
+### CSP Configuration
+
+Helmet CSP allows: `blob:` for image picker, `unsafe-inline` for React Native Web styles, `*.nyc3.digitaloceanspaces.com` for receipt images, `data:` for fonts.
+
+### Local Dev Ports
+
+- Grort backend: `3001`, Grort db: `5433`, MinIO: `9000`/`9001`
+- Painter's Log: `3000`/`5432`/`5173`
 
 ## What Is Done
 
-Everything from the 2026-03-06 status, plus:
+### Backend (Express API)
 
-- Web PWA served at grort.app
-- Mascot evolution system (3 tiers)
-- Offline banner for web
+- JWT auth: register, login, Google auth (token verification via `googleAuthService.ts`)
+- `/auth/me` returns user data + `receiptCount` for mascot tier
+- Household: create, invite, remove members, member listing
+- Receipt: upload, AI scan, item editing, listing with pagination, detail with signed image URL, deletion
+- Analytics: spending breakdown (period + category), price history, store comparison
+- `GET /analytics/category-items` — items by category with product IDs, for drill-down
+- Product: listing, update, merge
+- Store: listing, update, merge
+- AI parser adapter layer (Claude, OpenAI, Gemini) with receipt extraction + validation
+- Receipt processing pipeline: parse → resolve store → resolve category → match/create product → persist
+- `storeName` nullable in extraction schema — defaults to "Unknown Store" with `needsStoreName` flag
+- PostgreSQL schema, migrations, analytics indexes (3 migration files)
+- 98 tests passing (25 test files)
+
+### Frontend (Expo Web + Mobile)
+
+- Auth flow: login, register screens
+- Scan: gallery upload on web (blob → FormData), camera on native
+- Receipt review: edit items, edit store name (prompted when AI couldn't extract it)
+- Receipt list: with pagination, pull-to-refresh, delete
+- Receipt detail: items, totals, receipt photo thumbnail with tap-to-zoom modal
+- Trends: spending by period (week/month), by category, spending over time
+  - Category drill-down modal: tap category → item list sorted by cost, tap item → product detail
+  - Period drill-down modal: tap period → receipt list, tap receipt → receipt detail
+- Prices: product search with price tracking
+- Product detail: price history by store
+- Profile: account info with mascot, household management, member invite/remove
+- Mascot evolution: Baby Grort (0-9), Cyber Grort (10-49), Mecha Grort (50+)
+- Offline banner on web
 - Service worker for offline app shell caching
-- Google auth token verification
-- `/auth/me` includes `receiptCount`
+- All `Alert.alert` calls replaced with `window.alert`/`window.confirm` on web
+
+### PWA
+
+- Web app manifest: standalone display, theme color `#2E7D32`
+- Icons: `grort-v1.png` mascot for favicon, app icon, splash
+- Service worker: network-first with offline app shell fallback
 
 ## What Still Needs To Be Done
 
-### From previous status (still applicable)
+### High Priority
 
-1. Verify receipt scan and review with a real grocery receipt image
-2. Finish Google auth with full signature verification (partially done — `googleAuthService.ts` added)
-3. Add missing store/product management UX on mobile
-4. Verify personal-user behavior without a household
+1. Finish Google auth with full OAuth flow (current: token verification only, no client-side Google sign-in button wired up on web)
+2. Replace default Expo placeholder assets (`android-icon-*`) with Grort-branded versions
+3. Add store/product management UX (merge/edit exists on backend, no frontend screens)
 
-### New items
+### Medium Priority
 
-1. Replace default Expo placeholder assets (`android-icon-*`, `splash-icon.png`) with Grort-branded versions
-2. Consider adding web-native charts (the web still uses list fallbacks instead of visual charts)
-3. Test PWA install flow on mobile browsers (Chrome, Safari)
+4. Add web-native charts (web currently uses list fallbacks instead of visual charts)
+5. Test and refine PWA install flow on mobile browsers (Chrome, Safari)
+6. Verify personal-user behavior without a household (edge case in store resolution)
+7. Add receipt image to receipt review screen (currently only on detail)
+
+### Low Priority / Nice-to-Have
+
+8. Receipt search/filter by store or date range
+9. Export spending data (CSV/PDF)
+10. Budget tracking / spending alerts
+11. Barcode scanning for product lookup
