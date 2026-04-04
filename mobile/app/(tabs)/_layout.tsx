@@ -3,6 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, spacing, fontSize } from '../../src/styles/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { GrortMascot } from '../../src/components/GrortMascot';
+import { OfflineBanner } from '../../src/components/OfflineBanner';
 
 const VISIBLE_TABS = new Set(['scan', 'receipts', 'trends', 'prices', 'profile']);
 
@@ -52,8 +54,9 @@ export default function TabsLayout() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <GrortMascot receiptCount={user?.receiptCount ?? 0} size={100} />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.md }} />
       </View>
     );
   }
@@ -68,6 +71,7 @@ export default function TabsLayout() {
 
     return (
       <View style={styles.webShell}>
+        <OfflineBanner />
         <View style={styles.webContent}>
           <Slot />
         </View>

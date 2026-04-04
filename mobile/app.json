@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Grort",
+    "slug": "grort",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/grort-v1.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/grort-v1.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#F5F5F5"
     },
     "ios": {
       "supportsTablet": true
@@ -24,7 +24,12 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/grort-v1.png",
+      "name": "Grort",
+      "shortName": "Grort",
+      "themeColor": "#2E7D32",
+      "backgroundColor": "#F5F5F5",
+      "display": "standalone"
     },
     "plugins": [
       "expo-secure-store",
