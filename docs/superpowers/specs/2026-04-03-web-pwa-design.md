@@ -28,7 +28,7 @@ In `backend/src/index.ts`:
   - Files with hashed filenames (`*.HASH.js`, `*.HASH.css`): `Cache-Control: public, max-age=31536000, immutable`
   - `index.html`, `manifest.json`, service worker: `Cache-Control: no-cache`
 - All existing API routes (`/auth`, `/health`, `/receipts`, `/households`, `/upload`, `/products`, `/stores`, `/analytics`) registered before the static middleware.
-- Catch-all `GET *` route after static middleware serves `index.html` for client-side routing.
+- Catch-all `GET {*path}` route (Express 5 syntax) after static middleware serves `index.html` for client-side routing.
 
 ### API URL Configuration
 
@@ -153,14 +153,17 @@ CMD ["sh", "-c", "npx tsx src/db/migrate.ts && npx tsx src/index.ts"]
 
 ### GitHub Actions Workflow
 
-Update `.github/workflows/deploy.yml`:
+The deploy workflow (`.github/workflows/deploy.yml`) builds the image in CI, saves it as a gzipped tarball, SCPs it to the droplet, and loads it with `docker load`. This bypasses GHCR entirely.
 
-- Change Docker build context from `./backend` to `.` (repo root).
-- Remove the `context: ./backend` line or change it to `context: .`.
+Steps:
+1. `docker build -t ghcr.io/kevspahn/grort:latest .` (image name matches droplet's compose config)
+2. `docker save | gzip > grort.tar.gz`
+3. SCP tarball to droplet `/tmp/`
+4. SSH: `docker load`, `docker compose up -d grort`
 
 ### No Other Infrastructure Changes
 
-The droplet deployment (`docker compose pull grort && docker compose up -d grort`) remains unchanged. The container still exposes port 3001.
+The droplet's `docker-compose.yml` references `ghcr.io/kevspahn/grort:latest` as the image name (kept for compatibility). The container still exposes port 3001.
 
 ---
 
