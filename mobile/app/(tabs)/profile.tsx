@@ -6,6 +6,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import apiClient from '../../src/api/client';
 import { colors, spacing, fontSize } from '../../src/styles/theme';
+import { GrortMascot } from '../../src/components/GrortMascot';
 
 interface HouseholdMember {
   id: string;
@@ -92,8 +93,13 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
         <View style={styles.card}>
-          <Text style={styles.name}>{user?.name}</Text>
-          <Text style={styles.email}>{user?.email}</Text>
+          <View style={styles.profileHeader}>
+            <GrortMascot receiptCount={user?.receiptCount ?? 0} size={80} showTierName />
+            <View style={styles.profileInfo}>
+              <Text style={styles.name}>{user?.name}</Text>
+              <Text style={styles.email}>{user?.email}</Text>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -195,6 +201,8 @@ const styles = StyleSheet.create({
   createForm: { gap: spacing.sm },
   createButtons: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   cancelText: { color: colors.textSecondary },
+  profileHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  profileInfo: { flex: 1 },
   logoutButton: { margin: spacing.md, padding: spacing.md, borderRadius: 8, borderWidth: 1, borderColor: colors.error, alignItems: 'center' },
   logoutText: { color: colors.error, fontWeight: '600', fontSize: fontSize.md },
 });
