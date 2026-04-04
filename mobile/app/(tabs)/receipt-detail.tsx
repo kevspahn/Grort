@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, ActivityIndicator, Alert, TouchableOpacity,
+  View, Text, FlatList, StyleSheet, ActivityIndicator, Alert, TouchableOpacity, Image, Platform, Modal, Pressable,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import apiClient from '../../src/api/client';
@@ -13,6 +13,7 @@ interface ReceiptDetail {
   subtotal: number | null;
   tax: number | null;
   total: number;
+  signedImageUrl: string | null;
   items: Array<{
     id: string; name_on_receipt: string; product_name: string | null;
     quantity: number; unit_price: number | null; total_price: number; category_name: string | null;
@@ -23,23 +24,35 @@ export default function ReceiptDetailScreen() {
   const { receiptId } = useLocalSearchParams<{ receiptId: string }>();
   const [receipt, setReceipt] = useState<ReceiptDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [imageZoom, setImageZoom] = useState(false);
 
   useEffect(() => { loadReceipt(); }, [receiptId]);
 
+  function showAlert(title: string, message: string) {
+    if (Platform.OS === 'web') { window.alert(`${title}: ${message}`); }
+    else { Alert.alert(title, message); }
+  }
+
   async function loadReceipt() {
     try { const response = await apiClient.get(`/receipts/${receiptId}`); setReceipt(response.data); }
-    catch { Alert.alert('Error', 'Failed to load receipt'); }
+    catch { showAlert('Error', 'Failed to load receipt'); }
     finally { setIsLoading(false); }
   }
 
   async function handleDelete() {
-    Alert.alert('Delete Receipt', 'This will permanently delete this receipt and all items.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        try { await apiClient.delete(`/receipts/${receiptId}`); router.back(); }
-        catch { Alert.alert('Error', 'Failed to delete receipt'); }
-      }},
-    ]);
+    if (Platform.OS === 'web') {
+      if (!window.confirm('This will permanently delete this receipt and all items.')) return;
+      try { await apiClient.delete(`/receipts/${receiptId}`); router.back(); }
+      catch { showAlert('Error', 'Failed to delete receipt'); }
+    } else {
+      Alert.alert('Delete Receipt', 'This will permanently delete this receipt and all items.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: async () => {
+          try { await apiClient.delete(`/receipts/${receiptId}`); router.back(); }
+          catch { Alert.alert('Error', 'Failed to delete receipt'); }
+        }},
+      ]);
+    }
   }
 
   if (isLoading || !receipt) return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
@@ -68,14 +81,35 @@ export default function ReceiptDetailScreen() {
           </View>
         )}
         ListFooterComponent={
-          <View style={styles.totals}>
-            {receipt.subtotal != null && <View style={styles.totalRow}><Text style={styles.totalLabel}>Subtotal</Text><Text style={styles.totalValue}>${Number(receipt.subtotal).toFixed(2)}</Text></View>}
-            {receipt.tax != null && <View style={styles.totalRow}><Text style={styles.totalLabel}>Tax</Text><Text style={styles.totalValue}>${Number(receipt.tax).toFixed(2)}</Text></View>}
-            <View style={[styles.totalRow, styles.grandTotal]}><Text style={styles.grandTotalLabel}>Total</Text><Text style={styles.grandTotalValue}>${Number(receipt.total).toFixed(2)}</Text></View>
+          <View>
+            <View style={styles.totals}>
+              {receipt.subtotal != null && <View style={styles.totalRow}><Text style={styles.totalLabel}>Subtotal</Text><Text style={styles.totalValue}>${Number(receipt.subtotal).toFixed(2)}</Text></View>}
+              {receipt.tax != null && <View style={styles.totalRow}><Text style={styles.totalLabel}>Tax</Text><Text style={styles.totalValue}>${Number(receipt.tax).toFixed(2)}</Text></View>}
+              <View style={[styles.totalRow, styles.grandTotal]}><Text style={styles.grandTotalLabel}>Total</Text><Text style={styles.grandTotalValue}>${Number(receipt.total).toFixed(2)}</Text></View>
+            </View>
+            {receipt.signedImageUrl && (
+              <View style={styles.imageSection}>
+                <Text style={styles.imageSectionTitle}>Receipt Photo</Text>
+                <TouchableOpacity onPress={() => setImageZoom(true)}>
+                  <Image source={{ uri: receipt.signedImageUrl }} style={styles.thumbnail} resizeMode="contain" />
+                  <Text style={styles.tapToZoom}>Tap to enlarge</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         }
         contentContainerStyle={styles.list}
       />
+      {receipt.signedImageUrl && (
+        <Modal visible={imageZoom} transparent animationType="fade" onRequestClose={() => setImageZoom(false)}>
+          <Pressable style={styles.zoomBackdrop} onPress={() => setImageZoom(false)}>
+            <Image source={{ uri: receipt.signedImageUrl }} style={styles.zoomImage} resizeMode="contain" />
+            <TouchableOpacity style={styles.zoomClose} onPress={() => setImageZoom(false)}>
+              <Text style={styles.zoomCloseText}>Close</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Modal>
+      )}
       <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
         <Text style={styles.deleteButtonText}>Delete Receipt</Text>
       </TouchableOpacity>
@@ -107,6 +141,14 @@ const styles = StyleSheet.create({
   grandTotal: { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
   grandTotalLabel: { fontSize: fontSize.lg, fontWeight: 'bold', color: colors.text },
   grandTotalValue: { fontSize: fontSize.lg, fontWeight: 'bold', color: colors.primary },
+  imageSection: { marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  imageSectionTitle: { fontSize: fontSize.md, fontWeight: '600', color: colors.text, marginBottom: spacing.sm },
+  thumbnail: { width: '100%', height: 300, borderRadius: 8, backgroundColor: colors.background },
+  tapToZoom: { fontSize: fontSize.xs, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs },
+  zoomBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' },
+  zoomImage: { width: '95%', height: '85%' },
+  zoomClose: { position: 'absolute', top: 50, right: 20, padding: spacing.md },
+  zoomCloseText: { color: '#FFF', fontSize: fontSize.lg, fontWeight: 'bold' },
   deleteButton: { margin: spacing.md, padding: spacing.md, borderRadius: 8, borderWidth: 1, borderColor: colors.error, alignItems: 'center' },
   deleteButtonText: { color: colors.error, fontSize: fontSize.md, fontWeight: '600' },
 });

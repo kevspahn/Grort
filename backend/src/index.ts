@@ -22,7 +22,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "blob:", "https://nyc3.digitaloceanspaces.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.nyc3.digitaloceanspaces.com", "https://nyc3.digitaloceanspaces.com"],
       connectSrc: ["'self'", "blob:"],
       fontSrc: ["'self'", "data:"],
     },

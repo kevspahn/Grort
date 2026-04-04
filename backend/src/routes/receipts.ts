@@ -130,8 +130,19 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     const items = await receiptRepository.findItemsByReceiptId(receipt.id);
 
+    // Generate a signed URL for the receipt image
+    let signedImageUrl: string | null = null;
+    if (receipt.image_url) {
+      try {
+        signedImageUrl = await storageService.getSignedUrl(receipt.image_url);
+      } catch {
+        // Image may have been deleted; don't fail the whole response
+      }
+    }
+
     res.json({
       ...receipt,
+      signedImageUrl,
       items,
     });
   } catch (err) {
