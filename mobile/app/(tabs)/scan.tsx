@@ -92,16 +92,17 @@ export default function ScanScreen() {
     setIsProcessing(true);
     try {
       const formData = new FormData();
-      const filename = uri.split('/').pop() || 'receipt.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
 
       if (Platform.OS === 'web') {
-        // On web, fetch the blob from the URI and append it
+        // On web, fetch the blob from the URI and append with proper name
         const response = await fetch(uri);
         const blob = await response.blob();
-        formData.append('image', blob, filename);
+        const ext = blob.type === 'image/png' ? '.png' : '.jpg';
+        formData.append('image', blob, `receipt${ext}`);
       } else {
+        const filename = uri.split('/').pop() || 'receipt.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
         formData.append('image', { uri, name: filename, type } as any);
       }
 
@@ -112,7 +113,7 @@ export default function ScanScreen() {
 
       router.push({ pathname: '/(tabs)/receipt-review', params: { receiptData: JSON.stringify(response.data) } });
     } catch (err: any) {
-      const message = err?.response?.data?.error || 'Failed to process receipt. Please try again.';
+      const message = err?.response?.data?.error || err?.message || 'Failed to process receipt. Please try again.';
       showError('Processing Failed', message);
       setCapturedImage(null);
     } finally {
