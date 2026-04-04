@@ -8,6 +8,7 @@ interface User {
   name: string;
   householdId: string | null;
   householdRole: 'owner' | 'member' | null;
+  receiptCount: number;
 }
 
 interface AuthContextType {
@@ -63,10 +64,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function storeAuth(authToken: string, authUser: User) {
+    const userWithDefaults = { receiptCount: 0, ...authUser };
     await setAuthItem('auth_token', authToken);
-    await setAuthItem('auth_user', JSON.stringify(authUser));
+    await setAuthItem('auth_user', JSON.stringify(userWithDefaults));
     setToken(authToken);
-    setUser(authUser);
+    setUser(userWithDefaults);
   }
 
   async function login(email: string, password: string) {
