@@ -15,7 +15,7 @@ jobs:
         run: docker build -t ghcr.io/kevspahn/grort:latest .
 
       - name: Save image as tarball
-        run: docker save ghcr.io/kevspahn/grort:latest | gzip > /tmp/grort.tar.gz
+        run: docker save ghcr.io/kevspahn/grort:latest | gzip > grort.tar.gz
 
       - name: Copy image to droplet
         uses: appleboy/scp-action@v0.1.7
@@ -23,9 +23,8 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: deploy
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: /tmp/grort.tar.gz
+          source: grort.tar.gz
           target: /tmp/
-          strip_components: 1
 
       - name: Deploy to droplet
         uses: appleboy/ssh-action@v1
