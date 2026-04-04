@@ -120,11 +120,14 @@ export const analyticsService = {
     const { rows } = await pool.query(
       `SELECT
         ri.name_on_receipt,
+        MAX(ri.product_id) as product_id,
+        MAX(p.canonical_name) as product_name,
         SUM(ri.quantity) as total_quantity,
         SUM(ri.total_price) as total_cost,
         COUNT(*) as purchase_count
        FROM receipt_items ri
        JOIN receipts r ON ri.receipt_id = r.id
+       LEFT JOIN products p ON ri.product_id = p.id
        WHERE ${whereClause}
        GROUP BY ri.name_on_receipt
        ORDER BY total_cost DESC`,
@@ -133,6 +136,8 @@ export const analyticsService = {
 
     return rows.map((r: any) => ({
       name: r.name_on_receipt,
+      productId: r.product_id,
+      productName: r.product_name,
       totalQuantity: Number(r.total_quantity),
       totalCost: Number(r.total_cost),
       purchaseCount: Number(r.purchase_count),

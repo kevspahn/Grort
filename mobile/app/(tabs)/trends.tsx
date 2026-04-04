@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions, Platform,
   Modal, FlatList, Pressable,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, router } from 'expo-router';
 import { BarChart, PieChart, LineChart } from 'react-native-chart-kit';
 import apiClient from '../../src/api/client';
 import { colors, spacing, fontSize } from '../../src/styles/theme';
@@ -19,9 +19,19 @@ interface SpendingData {
 
 interface CategoryItem {
   name: string;
+  productId: string | null;
+  productName: string | null;
   totalQuantity: number;
   totalCost: number;
   purchaseCount: number;
+}
+
+interface PeriodReceipt {
+  id: string;
+  store_name: string;
+  receipt_date: string;
+  total: number;
+  item_count: number;
 }
 
 const PERIOD_COLORS = [
@@ -36,6 +46,8 @@ export default function TrendsScreen() {
   const [scope, setScope] = useState<'personal' | 'household'>('household');
   const [categoryModal, setCategoryModal] = useState<{ name: string; items: CategoryItem[] } | null>(null);
   const [categoryLoading, setCategoryLoading] = useState(false);
+  const [periodModal, setPeriodModal] = useState<{ label: string; receipts: PeriodReceipt[] } | null>(null);
+  const [periodLoading, setPeriodLoading] = useState(false);
 
   useFocusEffect(useCallback(() => { loadData(); }, [period, scope]));
 
@@ -51,6 +63,29 @@ export default function TrendsScreen() {
       setCategoryModal(null);
     } finally {
       setCategoryLoading(false);
+    }
+  }
+
+  async function loadPeriodReceipts(periodStart: string, label: string) {
+    setPeriodLoading(true);
+    setPeriodModal({ label, receipts: [] });
+    try {
+      const start = new Date(periodStart);
+      let end: Date;
+      if (period === 'month') {
+        end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+      } else {
+        end = new Date(start);
+        end.setDate(end.getDate() + 6);
+      }
+      const startDate = start.toISOString().split('T')[0];
+      const endDate = end.toISOString().split('T')[0];
+      const response = await apiClient.get(`/receipts?startDate=${startDate}&endDate=${endDate}&limit=100`);
+      setPeriodModal({ label, receipts: response.data.items });
+    } catch {
+      setPeriodModal(null);
+    } finally {
+      setPeriodLoading(false);
     }
   }
 
@@ -138,14 +173,24 @@ export default function TrendsScreen() {
           {Platform.OS === 'web' ? (
             <View style={styles.listBlock}>
               {data.periodBreakdown.slice(-6).map((entry) => (
-                <View key={entry.period} style={styles.row}>
+                <TouchableOpacity key={entry.period} style={styles.row} onPress={() => loadPeriodReceipts(entry.period, entry.period)}>
                   <Text style={styles.rowLabel}>{entry.period}</Text>
-                  <Text style={styles.rowValue}>${entry.total.toFixed(2)}</Text>
-                </View>
+                  <Text style={styles.rowValue}>${entry.total.toFixed(2)} ›</Text>
+                </TouchableOpacity>
               ))}
             </View>
           ) : (
-            <BarChart data={barData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} yAxisLabel="$" yAxisSuffix="" fromZero style={styles.chart} />
+            <View>
+              <BarChart data={barData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} yAxisLabel="$" yAxisSuffix="" fromZero style={styles.chart} />
+              <View style={styles.listBlock}>
+                {data.periodBreakdown.slice(-6).map((entry) => (
+                  <TouchableOpacity key={`bar-${entry.period}`} style={styles.row} onPress={() => loadPeriodReceipts(entry.period, entry.period)}>
+                    <Text style={styles.rowLabel}>{entry.period}</Text>
+                    <Text style={styles.rowValue}>${entry.total.toFixed(2)} ›</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           )}
         </View>
       )}
@@ -186,14 +231,24 @@ export default function TrendsScreen() {
           {Platform.OS === 'web' ? (
             <View style={styles.listBlock}>
               {data.periodBreakdown.slice(-12).map((entry) => (
-                <View key={`timeline-${entry.period}`} style={styles.row}>
+                <TouchableOpacity key={`timeline-${entry.period}`} style={styles.row} onPress={() => loadPeriodReceipts(entry.period, entry.period)}>
                   <Text style={styles.rowLabel}>{entry.period}</Text>
-                  <Text style={styles.rowValue}>${entry.total.toFixed(2)}</Text>
-                </View>
+                  <Text style={styles.rowValue}>${entry.total.toFixed(2)} ›</Text>
+                </TouchableOpacity>
               ))}
             </View>
           ) : (
-            <LineChart data={lineData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} yAxisLabel="$" bezier style={styles.chart} />
+            <View>
+              <LineChart data={lineData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} yAxisLabel="$" bezier style={styles.chart} />
+              <View style={styles.listBlock}>
+                {data.periodBreakdown.slice(-12).map((entry) => (
+                  <TouchableOpacity key={`line-${entry.period}`} style={styles.row} onPress={() => loadPeriodReceipts(entry.period, entry.period)}>
+                    <Text style={styles.rowLabel}>{entry.period}</Text>
+                    <Text style={styles.rowValue}>${entry.total.toFixed(2)} ›</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           )}
         </View>
       )}
@@ -215,7 +270,16 @@ export default function TrendsScreen() {
                 keyExtractor={(item, i) => `${item.name}-${i}`}
                 contentContainerStyle={styles.modalList}
                 renderItem={({ item }) => (
-                  <View style={styles.modalItem}>
+                  <TouchableOpacity
+                    style={styles.modalItem}
+                    disabled={!item.productId}
+                    onPress={() => {
+                      if (item.productId) {
+                        setCategoryModal(null);
+                        router.push({ pathname: '/(tabs)/product-detail', params: { productId: item.productId, productName: item.productName || item.name } });
+                      }
+                    }}
+                  >
                     <View style={styles.modalItemLeft}>
                       <Text style={styles.modalItemName}>{item.name}</Text>
                       <Text style={styles.modalItemMeta}>
@@ -223,10 +287,58 @@ export default function TrendsScreen() {
                         {item.purchaseCount > 1 ? ` · ${item.purchaseCount} purchases` : ''}
                       </Text>
                     </View>
-                    <Text style={styles.modalItemCost}>${item.totalCost.toFixed(2)}</Text>
-                  </View>
+                    <View style={styles.modalItemRight}>
+                      <Text style={styles.modalItemCost}>${item.totalCost.toFixed(2)}</Text>
+                      {item.productId && <Text style={styles.modalChevron}>›</Text>}
+                    </View>
+                  </TouchableOpacity>
                 )}
                 ListEmptyComponent={<Text style={styles.emptyText}>No items found</Text>}
+              />
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Period receipts modal */}
+      <Modal visible={periodModal !== null} transparent animationType="slide" onRequestClose={() => setPeriodModal(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setPeriodModal(null)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{periodModal?.label}</Text>
+              <TouchableOpacity onPress={() => setPeriodModal(null)}>
+                <Text style={styles.modalClose}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            {periodLoading ? (
+              <ActivityIndicator size="large" color={colors.primary} style={{ padding: spacing.xl }} />
+            ) : (
+              <FlatList
+                data={periodModal?.receipts || []}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.modalList}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.modalItem}
+                    onPress={() => {
+                      setPeriodModal(null);
+                      router.push({ pathname: '/(tabs)/receipt-detail', params: { receiptId: item.id } });
+                    }}
+                  >
+                    <View style={styles.modalItemLeft}>
+                      <Text style={styles.modalItemName}>{item.store_name || 'Unknown Store'}</Text>
+                      <Text style={styles.modalItemMeta}>
+                        {new Date(item.receipt_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {item.item_count ? ` · ${item.item_count} items` : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.modalItemRight}>
+                      <Text style={styles.modalItemCost}>${Number(item.total).toFixed(2)}</Text>
+                      <Text style={styles.modalChevron}>›</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={<Text style={styles.emptyText}>No receipts found</Text>}
               />
             )}
           </Pressable>
@@ -266,5 +378,7 @@ const styles = StyleSheet.create({
   modalItemLeft: { flex: 1, marginRight: spacing.md },
   modalItemName: { fontSize: fontSize.md, color: colors.text },
   modalItemMeta: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+  modalItemRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   modalItemCost: { fontSize: fontSize.md, fontWeight: 'bold', color: colors.primary },
+  modalChevron: { fontSize: fontSize.lg, color: colors.textSecondary },
 });
