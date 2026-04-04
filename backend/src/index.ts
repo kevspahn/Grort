@@ -50,8 +50,8 @@ if (fs.existsSync(publicDir)) {
     },
   }));
 
-  // Client-side routing catch-all
-  app.get('*', (_req, res) => {
+  // Client-side routing catch-all (Express 5 requires named param)
+  app.get('/{*path}', (_req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.join(publicDir, 'index.html'));
   });
