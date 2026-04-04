@@ -1,17 +1,17 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import app from '../index';
 import pool from '../db/pool';
-
-function createFakeGoogleIdToken(payload: Record<string, unknown>) {
-  const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
-  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  return `${header}.${body}.signature`;
-}
+import { googleAuthService, GoogleAuthError } from '../services/googleAuthService';
 
 describe('Auth routes', () => {
   beforeAll(async () => {
     await pool.query("DELETE FROM users WHERE email LIKE '%@test-routes.com'");
+  });
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
   });
 
   afterAll(async () => {
@@ -78,17 +78,20 @@ describe('Auth routes', () => {
 
   describe('POST /auth/google', () => {
     it('rejects mismatched Google token claims', async () => {
-      const idToken = createFakeGoogleIdToken({
+      vi.spyOn(googleAuthService, 'verifyIdToken').mockResolvedValue({
+        iss: 'https://accounts.google.com',
         sub: 'google-123',
         email: 'actual@test-routes.com',
         name: 'Actual User',
+        aud: 'test-google-client-id',
+        iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600,
       });
 
       const res = await request(app)
         .post('/auth/google')
         .send({
-          idToken,
+          idToken: 'verified-token',
           googleId: 'google-123',
           email: 'spoofed@test-routes.com',
           name: 'Actual User',
@@ -98,17 +101,20 @@ describe('Auth routes', () => {
     });
 
     it('accepts matching Google token claims', async () => {
-      const idToken = createFakeGoogleIdToken({
+      vi.spyOn(googleAuthService, 'verifyIdToken').mockResolvedValue({
+        iss: 'https://accounts.google.com',
         sub: 'google-456',
         email: 'google@test-routes.com',
         name: 'Google User',
+        aud: 'test-google-client-id',
+        iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600,
       });
 
       const res = await request(app)
         .post('/auth/google')
         .send({
-          idToken,
+          idToken: 'verified-token',
           googleId: 'google-456',
           email: 'google@test-routes.com',
           name: 'Google User',
@@ -116,6 +122,42 @@ describe('Auth routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.user.email).toBe('google@test-routes.com');
+    });
+
+    it('rejects invalid Google tokens', async () => {
+      vi.spyOn(googleAuthService, 'verifyIdToken').mockRejectedValue(
+        new GoogleAuthError('Invalid Google idToken')
+      );
+
+      const res = await request(app)
+        .post('/auth/google')
+        .send({
+          idToken: 'bad-token',
+          googleId: 'google-789',
+          email: 'google-invalid@test-routes.com',
+          name: 'Invalid User',
+        });
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe('Invalid Google idToken');
+    });
+
+    it('returns a server error when Google auth is not configured', async () => {
+      vi.spyOn(googleAuthService, 'verifyIdToken').mockRejectedValue(
+        new GoogleAuthError('Google auth is not configured on the server', 500)
+      );
+
+      const res = await request(app)
+        .post('/auth/google')
+        .send({
+          idToken: 'verified-token',
+          googleId: 'google-999',
+          email: 'google-config@test-routes.com',
+          name: 'Config User',
+        });
+
+      expect(res.status).toBe(500);
+      expect(res.body.error).toBe('Google auth is not configured on the server');
     });
   });
 });
