@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import authRoutes from './routes/auth';
 import householdRoutes from './routes/households';
 import uploadRoutes from './routes/upload';
@@ -33,6 +34,28 @@ app.use('/receipts', receiptRoutes);
 app.use('/products', productRoutes);
 app.use('/stores', storeRoutes);
 app.use('/analytics', analyticsRoutes);
+
+// Serve Expo web build if the public directory exists (production)
+const publicDir = path.join(__dirname, '../public');
+if (fs.existsSync(publicDir)) {
+  // Hashed assets get long cache
+  app.use(express.static(publicDir, {
+    maxAge: '1y',
+    immutable: true,
+    setHeaders(res, filePath) {
+      // index.html and service worker must not be cached
+      if (filePath.endsWith('.html') || filePath.endsWith('sw.js')) {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    },
+  }));
+
+  // Client-side routing catch-all
+  app.get('*', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(path.join(publicDir, 'index.html'));
+  });
+}
 
 const PORT = process.env.PORT || 3000;
 
