@@ -23,12 +23,23 @@ export default function ScanScreen() {
   }
 
   if (Platform.OS === 'web') {
+    if (isProcessing) {
+      return (
+        <View style={styles.webContainer}>
+          <View style={styles.webCard}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.processingText}>Scanning receipt...</Text>
+            <Text style={styles.processingSubtext}>AI is extracting items and prices</Text>
+          </View>
+        </View>
+      );
+    }
     return (
       <View style={styles.webContainer}>
         <View style={styles.webCard}>
           <Text style={styles.webTitle}>Scan</Text>
           <Text style={styles.webText}>
-            Web uses gallery upload for receipt verification. Camera capture remains available on native devices.
+            Upload a receipt image to scan it.
           </Text>
           <TouchableOpacity style={styles.button} onPress={pickFromGallery}>
             <Text style={styles.buttonText}>Choose Receipt Image</Text>
@@ -69,6 +80,14 @@ export default function ScanScreen() {
     }
   }
 
+  function showError(title: string, message: string) {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}: ${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  }
+
   async function processImage(uri: string) {
     setIsProcessing(true);
     try {
@@ -76,7 +95,15 @@ export default function ScanScreen() {
       const filename = uri.split('/').pop() || 'receipt.jpg';
       const match = /\.(\w+)$/.exec(filename);
       const type = match ? `image/${match[1]}` : 'image/jpeg';
-      formData.append('image', { uri, name: filename, type } as any);
+
+      if (Platform.OS === 'web') {
+        // On web, fetch the blob from the URI and append it
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        formData.append('image', blob, filename);
+      } else {
+        formData.append('image', { uri, name: filename, type } as any);
+      }
 
       const response = await apiClient.post('/receipts/scan', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -86,7 +113,7 @@ export default function ScanScreen() {
       router.push({ pathname: '/(tabs)/receipt-review', params: { receiptData: JSON.stringify(response.data) } });
     } catch (err: any) {
       const message = err?.response?.data?.error || 'Failed to process receipt. Please try again.';
-      Alert.alert('Processing Failed', message);
+      showError('Processing Failed', message);
       setCapturedImage(null);
     } finally {
       setIsProcessing(false);
