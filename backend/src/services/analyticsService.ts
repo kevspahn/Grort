@@ -120,8 +120,8 @@ export const analyticsService = {
     const { rows } = await pool.query(
       `SELECT
         ri.name_on_receipt,
-        MAX(ri.product_id) as product_id,
-        MAX(p.canonical_name) as product_name,
+        (array_agg(ri.product_id) FILTER (WHERE ri.product_id IS NOT NULL))[1] as product_id,
+        (array_agg(p.canonical_name) FILTER (WHERE p.canonical_name IS NOT NULL))[1] as product_name,
         SUM(ri.quantity) as total_quantity,
         SUM(ri.total_price) as total_cost,
         COUNT(*) as purchase_count
