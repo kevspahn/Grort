@@ -90,6 +90,55 @@ export const analyticsService = {
     };
   },
 
+  async getCategoryItems(options: {
+    categoryId: string | null;
+    scope: 'personal' | 'household';
+    userId: string;
+    householdId: string | null;
+  }) {
+    const { categoryId, scope, userId, householdId } = options;
+
+    let whereClause: string;
+    const params: unknown[] = [];
+    let paramIdx = 1;
+
+    if (scope === 'household' && householdId) {
+      whereClause = `r.household_id = $${paramIdx++}`;
+      params.push(householdId);
+    } else {
+      whereClause = `r.user_id = $${paramIdx++}`;
+      params.push(userId);
+    }
+
+    if (categoryId) {
+      whereClause += ` AND ri.category_id = $${paramIdx++}`;
+      params.push(categoryId);
+    } else {
+      whereClause += ' AND ri.category_id IS NULL';
+    }
+
+    const { rows } = await pool.query(
+      `SELECT
+        ri.name_on_receipt,
+        SUM(ri.quantity) as total_quantity,
+        SUM(ri.total_price) as total_cost,
+        COUNT(*) as purchase_count
+       FROM receipt_items ri
+       JOIN receipts r ON ri.receipt_id = r.id
+       WHERE ${whereClause}
+       GROUP BY ri.name_on_receipt
+       ORDER BY total_cost DESC`,
+      params
+    );
+
+    return rows.map((r: any) => ({
+      name: r.name_on_receipt,
+      totalQuantity: Number(r.total_quantity),
+      totalCost: Number(r.total_cost),
+      purchaseCount: Number(r.purchase_count),
+    }));
+  },
+
   async getPriceHistory(
     productId: string,
     householdId: string,

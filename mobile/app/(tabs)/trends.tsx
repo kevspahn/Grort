@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Dimensions, Platform,
+  Modal, FlatList, Pressable,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { BarChart, PieChart, LineChart } from 'react-native-chart-kit';
@@ -16,6 +17,13 @@ interface SpendingData {
   categoryBreakdown: Array<{ categoryId: string | null; categoryName: string; total: number; percentage: number }>;
 }
 
+interface CategoryItem {
+  name: string;
+  totalQuantity: number;
+  totalCost: number;
+  purchaseCount: number;
+}
+
 const PERIOD_COLORS = [
   '#2E7D32', '#FF6F00', '#1565C0', '#6A1B9A', '#C62828',
   '#00838F', '#4E342E', '#283593', '#558B2F', '#E65100',
@@ -26,8 +34,25 @@ export default function TrendsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState<'week' | 'month'>('month');
   const [scope, setScope] = useState<'personal' | 'household'>('household');
+  const [categoryModal, setCategoryModal] = useState<{ name: string; items: CategoryItem[] } | null>(null);
+  const [categoryLoading, setCategoryLoading] = useState(false);
 
   useFocusEffect(useCallback(() => { loadData(); }, [period, scope]));
+
+  async function loadCategoryItems(categoryId: string | null, categoryName: string) {
+    setCategoryLoading(true);
+    setCategoryModal({ name: categoryName, items: [] });
+    try {
+      const params = new URLSearchParams({ scope });
+      if (categoryId) params.set('categoryId', categoryId);
+      const response = await apiClient.get(`/analytics/category-items?${params}`);
+      setCategoryModal({ name: categoryName, items: response.data });
+    } catch {
+      setCategoryModal(null);
+    } finally {
+      setCategoryLoading(false);
+    }
+  }
 
   async function loadData() {
     setIsLoading(true);
@@ -125,21 +150,31 @@ export default function TrendsScreen() {
         </View>
       )}
 
-      {/* Pie chart */}
+      {/* Pie chart / Category breakdown */}
       {pieData.length > 0 && (
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Spending by Category</Text>
           {Platform.OS === 'web' ? (
             <View style={styles.listBlock}>
               {data.categoryBreakdown.slice(0, 8).map((entry) => (
-                <View key={`${entry.categoryId ?? 'none'}-${entry.categoryName}`} style={styles.row}>
+                <TouchableOpacity key={`${entry.categoryId ?? 'none'}-${entry.categoryName}`} style={styles.row} onPress={() => loadCategoryItems(entry.categoryId, entry.categoryName)}>
                   <Text style={styles.rowLabel}>{entry.categoryName}</Text>
-                  <Text style={styles.rowValue}>${entry.total.toFixed(2)} ({entry.percentage.toFixed(0)}%)</Text>
-                </View>
+                  <Text style={styles.rowValue}>${entry.total.toFixed(2)} ({entry.percentage.toFixed(0)}%) ›</Text>
+                </TouchableOpacity>
               ))}
             </View>
           ) : (
-            <PieChart data={pieData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} accessor="amount" backgroundColor="transparent" paddingLeft="15" />
+            <View>
+              <PieChart data={pieData} width={screenWidth - spacing.md * 2} height={220} chartConfig={chartConfig} accessor="amount" backgroundColor="transparent" paddingLeft="15" />
+              <View style={styles.listBlock}>
+                {data.categoryBreakdown.slice(0, 8).map((entry) => (
+                  <TouchableOpacity key={`${entry.categoryId ?? 'none'}-${entry.categoryName}-tap`} style={styles.row} onPress={() => loadCategoryItems(entry.categoryId, entry.categoryName)}>
+                    <Text style={styles.rowLabel}>{entry.categoryName}</Text>
+                    <Text style={styles.rowValue}>${entry.total.toFixed(2)} ›</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           )}
         </View>
       )}
@@ -162,6 +197,41 @@ export default function TrendsScreen() {
           )}
         </View>
       )}
+      {/* Category detail modal */}
+      <Modal visible={categoryModal !== null} transparent animationType="slide" onRequestClose={() => setCategoryModal(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setCategoryModal(null)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{categoryModal?.name}</Text>
+              <TouchableOpacity onPress={() => setCategoryModal(null)}>
+                <Text style={styles.modalClose}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            {categoryLoading ? (
+              <ActivityIndicator size="large" color={colors.primary} style={{ padding: spacing.xl }} />
+            ) : (
+              <FlatList
+                data={categoryModal?.items || []}
+                keyExtractor={(item, i) => `${item.name}-${i}`}
+                contentContainerStyle={styles.modalList}
+                renderItem={({ item }) => (
+                  <View style={styles.modalItem}>
+                    <View style={styles.modalItemLeft}>
+                      <Text style={styles.modalItemName}>{item.name}</Text>
+                      <Text style={styles.modalItemMeta}>
+                        {item.totalQuantity > 1 ? `Qty: ${item.totalQuantity}` : ''}
+                        {item.purchaseCount > 1 ? ` · ${item.purchaseCount} purchases` : ''}
+                      </Text>
+                    </View>
+                    <Text style={styles.modalItemCost}>${item.totalCost.toFixed(2)}</Text>
+                  </View>
+                )}
+                ListEmptyComponent={<Text style={styles.emptyText}>No items found</Text>}
+              />
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -186,4 +256,15 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowLabel: { flex: 1, marginRight: spacing.md, color: colors.text, fontSize: fontSize.sm },
   rowValue: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: '600' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  modalTitle: { fontSize: fontSize.lg, fontWeight: 'bold', color: colors.text },
+  modalClose: { fontSize: fontSize.md, color: colors.primary, fontWeight: '600' },
+  modalList: { padding: spacing.md, gap: spacing.sm },
+  modalItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+  modalItemLeft: { flex: 1, marginRight: spacing.md },
+  modalItemName: { fontSize: fontSize.md, color: colors.text },
+  modalItemMeta: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+  modalItemCost: { fontSize: fontSize.md, fontWeight: 'bold', color: colors.primary },
 });

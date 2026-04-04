@@ -31,6 +31,25 @@ router.get('/spending', async (req: Request, res: Response) => {
   }
 });
 
+// GET /analytics/category-items
+router.get('/category-items', async (req: Request, res: Response) => {
+  try {
+    const categoryId = req.query.categoryId as string | undefined;
+    const scope = (req.query.scope as string) || 'household';
+
+    const result = await analyticsService.getCategoryItems({
+      categoryId: categoryId || null,
+      scope: scope as 'personal' | 'household',
+      userId: req.user!.id,
+      householdId: req.householdId || null,
+    });
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /analytics/price-history/:productId
 router.get('/price-history/:productId', requireHousehold, async (req: Request, res: Response) => {
   try {
