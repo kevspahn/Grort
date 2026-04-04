@@ -77,6 +77,13 @@ router.post('/google', async (req: Request, res: Response) => {
 });
 
 router.get('/me', authMiddleware, async (req: Request, res: Response) => {
+  const pool = (await import('../db/pool')).default;
+  const countResult = await pool.query(
+    'SELECT COUNT(*)::int AS count FROM receipts WHERE user_id = $1',
+    [req.user!.id]
+  );
+  const receiptCount = countResult.rows[0].count;
+
   res.json({
     user: {
       id: req.user!.id,
@@ -84,6 +91,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
       name: req.user!.name,
       householdId: req.user!.household_id,
       householdRole: req.user!.household_role,
+      receiptCount,
     },
   });
 });

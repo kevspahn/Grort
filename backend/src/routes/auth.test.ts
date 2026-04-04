@@ -74,6 +74,20 @@ describe('Auth routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.user.email).toBe('new@test-routes.com');
     });
+
+    it('includes receiptCount in the response', async () => {
+      const loginRes = await request(app)
+        .post('/auth/login')
+        .send({ email: 'new@test-routes.com', password: 'password123' });
+
+      const res = await request(app)
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${loginRes.body.token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.receiptCount).toBeDefined();
+      expect(typeof res.body.user.receiptCount).toBe('number');
+    });
   });
 
   describe('POST /auth/google', () => {
