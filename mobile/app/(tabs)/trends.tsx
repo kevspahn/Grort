@@ -55,12 +55,14 @@ export default function TrendsScreen() {
     setCategoryLoading(true);
     setCategoryModal({ name: categoryName, items: [] });
     try {
-      const params = new URLSearchParams({ scope });
-      if (categoryId) params.set('categoryId', categoryId);
-      const response = await apiClient.get(`/analytics/category-items?${params}`);
+      const url = categoryId
+        ? `/analytics/category-items?scope=${scope}&categoryId=${categoryId}`
+        : `/analytics/category-items?scope=${scope}`;
+      const response = await apiClient.get(url);
       setCategoryModal({ name: categoryName, items: response.data });
-    } catch {
-      setCategoryModal(null);
+    } catch (err: any) {
+      // Keep modal open but empty so user can see it failed
+      setCategoryModal({ name: categoryName, items: [] });
     } finally {
       setCategoryLoading(false);
     }
@@ -70,17 +72,19 @@ export default function TrendsScreen() {
     setPeriodLoading(true);
     setPeriodModal({ label, receipts: [] });
     try {
-      const start = new Date(periodStart);
-      let end: Date;
+      // Parse date parts directly to avoid timezone issues
+      const [year, month, day] = periodStart.split('-').map(Number);
+      let endDate: string;
       if (period === 'month') {
-        end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+        // Last day of the month
+        const lastDay = new Date(year, month, 0).getDate();
+        endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       } else {
-        end = new Date(start);
-        end.setDate(end.getDate() + 6);
+        // 6 days after start for a week
+        const end = new Date(year, month - 1, day + 6);
+        endDate = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
       }
-      const startDate = start.toISOString().split('T')[0];
-      const endDate = end.toISOString().split('T')[0];
-      const response = await apiClient.get(`/receipts?startDate=${startDate}&endDate=${endDate}&limit=100`);
+      const response = await apiClient.get(`/receipts?startDate=${periodStart}&endDate=${endDate}&limit=100`);
       setPeriodModal({ label, receipts: response.data.items });
     } catch {
       setPeriodModal(null);
