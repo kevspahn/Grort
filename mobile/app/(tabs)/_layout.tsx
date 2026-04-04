@@ -4,6 +4,7 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from '
 import { colors, spacing, fontSize } from '../../src/styles/theme';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { GrortMascot } from '../../src/components/GrortMascot';
+import { OfflineBanner } from '../../src/components/OfflineBanner';
 
 const VISIBLE_TABS = new Set(['scan', 'receipts', 'trends', 'prices', 'profile']);
 
@@ -70,6 +71,7 @@ export default function TabsLayout() {
 
     return (
       <View style={styles.webShell}>
+        <OfflineBanner />
         <View style={styles.webContent}>
           <Slot />
         </View>
