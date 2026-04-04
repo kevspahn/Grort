@@ -5,6 +5,7 @@ import {
 import { useFocusEffect, router } from 'expo-router';
 import apiClient from '../../src/api/client';
 import { colors, spacing, fontSize } from '../../src/styles/theme';
+import { GrortMascot } from '../../src/components/GrortMascot';
 
 interface ReceiptSummary {
   id: string;
@@ -67,7 +68,7 @@ export default function ReceiptsScreen() {
   }
 
   if (isLoading) return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
-  if (receipts.length === 0) return <View style={styles.centered}><Text style={styles.emptyText}>No receipts yet</Text><Text style={styles.emptySubtext}>Scan a receipt to get started</Text></View>;
+  if (receipts.length === 0) return <View style={styles.centered}><GrortMascot receiptCount={0} size={100} /><Text style={styles.emptyText}>No receipts yet</Text><Text style={styles.emptySubtext}>Scan a receipt to get started!</Text></View>;
 
   return (
     <FlatList

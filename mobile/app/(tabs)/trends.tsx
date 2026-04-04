@@ -6,6 +6,7 @@ import { useFocusEffect } from 'expo-router';
 import { BarChart, PieChart, LineChart } from 'react-native-chart-kit';
 import apiClient from '../../src/api/client';
 import { colors, spacing, fontSize } from '../../src/styles/theme';
+import { GrortMascot } from '../../src/components/GrortMascot';
 
 const screenWidth = Dimensions.get('window').width - spacing.md * 2;
 
@@ -41,7 +42,7 @@ export default function TrendsScreen() {
   }
 
   if (isLoading) return <View style={styles.centered}><ActivityIndicator size="large" color={colors.primary} /></View>;
-  if (!data) return <View style={styles.centered}><Text style={styles.emptyText}>No spending data yet</Text></View>;
+  if (!data) return <View style={styles.centered}><GrortMascot receiptCount={0} size={100} /><Text style={styles.emptyText}>No spending data yet</Text></View>;
 
   const barData = {
     labels: data.periodBreakdown.slice(-6).map((p) => {
