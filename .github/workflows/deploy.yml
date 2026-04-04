@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: kevspahn/grort
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   deploy:
@@ -14,6 +14,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      attestations: write
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
