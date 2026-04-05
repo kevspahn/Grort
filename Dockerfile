@@ -4,6 +4,7 @@ WORKDIR /mobile
 COPY mobile/package.json mobile/package-lock.json ./
 RUN npm ci
 COPY mobile/ .
+ENV EXPO_PUBLIC_API_URL=""
 RUN npx expo export --platform web
 
 # Stage 2: Backend + static files
