@@ -9,3 +9,6 @@ android/
 ios/
 uploads/
 .playwright-cli/
+
+# Dashboard sensitive sidecar
+STATUS.local.md
