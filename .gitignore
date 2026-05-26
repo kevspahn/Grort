@@ -9,6 +9,7 @@ android/
 ios/
 uploads/
 .playwright-cli/
+.playwright-mcp/
 
 # Dashboard sensitive sidecar
 STATUS.local.md
