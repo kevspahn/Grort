@@ -115,26 +115,34 @@ export const MergeProductsSchema = z.object({
 export type MergeProductsInput = z.infer<typeof MergeProductsSchema>;
 
 // ---- Receipt Item (AI extraction) ----
+// Validation is intentionally lenient: a single malformed item should be
+// dropped (see sanitizeExtraction), not cause the whole receipt to be rejected.
 export const ExtractedItemSchema = z.object({
-  nameOnReceipt: z.string(),
+  nameOnReceipt: z.string().min(1),
   quantity: z.number().positive().default(1),
-  unitPrice: z.number().nullable(),
+  unitPrice: z.number().nullable().default(null),
   totalPrice: z.number(),
-  suggestedCategory: z.string().nullable(),
-  suggestedCanonicalName: z.string().nullable(),
+  unitOfMeasure: z.string().nullable().default(null),
+  weight: z.number().positive().nullable().default(null),
+  isDiscount: z.boolean().default(false),
+  suggestedCategory: z.string().nullable().default(null),
+  suggestedCanonicalName: z.string().nullable().default(null),
 });
 export type ExtractedItem = z.infer<typeof ExtractedItemSchema>;
 
 // ---- AI Extraction Result ----
+// receiptDate and total are nullable: the model must NOT fabricate them when
+// not visible. Provenance flags record whether a value was read or estimated.
 export const ReceiptExtractionResultSchema = z.object({
   storeName: z.string().nullable().default(null),
-  storeAddress: z.string().nullable(),
-  storeBrand: z.string().nullable(),
-  receiptDate: z.string(), // YYYY-MM-DD
+  storeAddress: z.string().nullable().default(null),
+  storeBrand: z.string().nullable().default(null),
+  receiptDate: z.string().nullable().default(null), // YYYY-MM-DD or null
   items: z.array(ExtractedItemSchema).min(1),
-  subtotal: z.number().nullable(),
-  tax: z.number().nullable(),
-  total: z.number(),
+  subtotal: z.number().nullable().default(null),
+  tax: z.number().nullable().default(null),
+  discountTotal: z.number().nullable().default(null),
+  total: z.number().nullable().default(null),
 });
 export type ReceiptExtractionResult = z.infer<typeof ReceiptExtractionResultSchema>;
 

@@ -1,9 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ReceiptParser } from './types';
-import { ReceiptExtractionResult, ReceiptExtractionResultSchema } from '../shared/schemas';
+import { ReceiptExtractionResult } from '../shared/schemas';
 import { RECEIPT_PARSING_PROMPT } from './promptTemplate';
 import { storageService } from '../services/storageService';
-import { parseReceiptJsonResponse } from './parseResponse';
+import { parseReceiptJsonResponse, sanitizeExtraction } from './parseResponse';
 
 export class GeminiReceiptParser implements ReceiptParser {
   readonly providerName = 'gemini';
@@ -40,6 +40,6 @@ export class GeminiReceiptParser implements ReceiptParser {
 
     const parsed = parseReceiptJsonResponse(content);
 
-    return ReceiptExtractionResultSchema.parse(parsed);
+    return sanitizeExtraction(parsed);
   }
 }

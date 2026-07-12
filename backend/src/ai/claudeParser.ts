@@ -1,9 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ReceiptParser } from './types';
-import { ReceiptExtractionResult, ReceiptExtractionResultSchema } from '../shared/schemas';
+import { ReceiptExtractionResult } from '../shared/schemas';
 import { RECEIPT_PARSING_PROMPT } from './promptTemplate';
 import { storageService } from '../services/storageService';
-import { parseReceiptJsonResponse } from './parseResponse';
+import { parseReceiptJsonResponse, sanitizeExtraction } from './parseResponse';
 
 export class ClaudeReceiptParser implements ReceiptParser {
   readonly providerName = 'claude';
@@ -24,7 +24,7 @@ export class ClaudeReceiptParser implements ReceiptParser {
     const mediaType = response.headers.get('content-type') || 'image/jpeg';
 
     const message = await this.client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5',
       max_tokens: 4096,
       messages: [
         {
@@ -54,6 +54,6 @@ export class ClaudeReceiptParser implements ReceiptParser {
 
     const parsed = parseReceiptJsonResponse(textContent.text);
 
-    return ReceiptExtractionResultSchema.parse(parsed);
+    return sanitizeExtraction(parsed);
   }
 }

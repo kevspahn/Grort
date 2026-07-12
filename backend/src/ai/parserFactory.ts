@@ -13,8 +13,15 @@ const parsers: Record<AIProvider, () => ReceiptParser> = {
 
 let cachedParser: ReceiptParser | null = null;
 let cachedProvider: AIProvider | null = null;
+let overrideParser: ReceiptParser | null = null;
+
+/** Test seam: force getReceiptParser to return a specific parser (or clear it). */
+export function setReceiptParser(parser: ReceiptParser | null): void {
+  overrideParser = parser;
+}
 
 export function getReceiptParser(provider?: AIProvider): ReceiptParser {
+  if (overrideParser) return overrideParser;
   const activeProvider = provider || (process.env.AI_PROVIDER as AIProvider) || 'claude';
 
   if (cachedParser && cachedProvider === activeProvider) {

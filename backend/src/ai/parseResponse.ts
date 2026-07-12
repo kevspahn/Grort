@@ -1,3 +1,5 @@
+import { ReceiptExtractionResult, ReceiptExtractionResultSchema } from '../shared/schemas';
+
 export class ReceiptParseError extends Error {
   readonly statusCode: number;
 
@@ -44,7 +46,11 @@ export function parseReceiptJsonResponse(content: string): unknown {
   } catch {
     const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     if (match) {
-      return JSON.parse(match[1]);
+      try {
+        return JSON.parse(match[1]);
+      } catch {
+        throw new ReceiptParseError('AI returned a malformed JSON code block');
+      }
     }
 
     if (
@@ -55,5 +61,41 @@ export function parseReceiptJsonResponse(content: string): unknown {
     }
 
     throw new Error(`Failed to parse AI response as JSON: ${trimmed.substring(0, 200)}`);
+  }
+}
+
+/**
+ * Drop-and-flag malformed items, then validate. A single unusable item (no
+ * name, non-numeric price) is dropped rather than rejecting the whole receipt.
+ * Throws ReceiptParseError if nothing usable remains.
+ */
+export function sanitizeExtraction(raw: unknown): ReceiptExtractionResult {
+  const obj: Record<string, unknown> =
+    raw && typeof raw === 'object' ? { ...(raw as Record<string, unknown>) } : {};
+
+  if (Array.isArray(obj.items)) {
+    obj.items = obj.items.filter((it) => {
+      if (!it || typeof it !== 'object') return false;
+      const item = it as Record<string, unknown>;
+      const name = typeof item.nameOnReceipt === 'string' ? item.nameOnReceipt.trim() : '';
+      const total =
+        typeof item.totalPrice === 'number'
+          ? item.totalPrice
+          : typeof item.totalPrice === 'string'
+            ? Number(item.totalPrice)
+            : NaN;
+      if (!name || !Number.isFinite(total)) return false;
+      item.totalPrice = total;
+      return true;
+    });
+    if ((obj.items as unknown[]).length === 0) {
+      throw new ReceiptParseError('No line items could be read from this receipt');
+    }
+  }
+
+  try {
+    return ReceiptExtractionResultSchema.parse(obj);
+  } catch {
+    throw new ReceiptParseError('Receipt data could not be understood');
   }
 }

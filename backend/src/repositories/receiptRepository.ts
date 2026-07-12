@@ -1,4 +1,4 @@
-import pool from '../db/pool';
+import pool, { Executor } from '../db/pool';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface ReceiptRow {
@@ -9,7 +9,11 @@ export interface ReceiptRow {
   receipt_date: string;
   subtotal: number | null;
   tax: number | null;
+  discount_total: number | null;
   total: number;
+  total_estimated: boolean;
+  date_estimated: boolean;
+  needs_review: boolean;
   image_url: string;
   raw_ai_response: unknown;
   created_at: Date;
@@ -24,6 +28,10 @@ export interface ReceiptItemRow {
   quantity: number;
   unit_price: number | null;
   total_price: number;
+  unit_of_measure: string | null;
+  weight: number | null;
+  is_discount: boolean;
+  needs_review: boolean;
   category_id: string | null;
   created_at: Date;
 }
@@ -36,16 +44,22 @@ export const receiptRepository = {
     receiptDate: string;
     subtotal: number | null;
     tax: number | null;
+    discountTotal?: number | null;
     total: number;
+    totalEstimated?: boolean;
+    dateEstimated?: boolean;
+    needsReview?: boolean;
     imageUrl: string;
     rawAiResponse: unknown;
-  }): Promise<ReceiptRow> {
+  }, executor: Executor = pool): Promise<ReceiptRow> {
     const id = uuidv4();
-    const { rows } = await pool.query(
-      `INSERT INTO receipts (id, user_id, household_id, store_id, receipt_date, subtotal, tax, total, image_url, raw_ai_response)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    const { rows } = await executor.query(
+      `INSERT INTO receipts (id, user_id, household_id, store_id, receipt_date, subtotal, tax, discount_total, total, total_estimated, date_estimated, needs_review, image_url, raw_ai_response)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
-      [id, data.userId, data.householdId, data.storeId, data.receiptDate, data.subtotal, data.tax, data.total, data.imageUrl, JSON.stringify(data.rawAiResponse)]
+      [id, data.userId, data.householdId, data.storeId, data.receiptDate, data.subtotal, data.tax,
+       data.discountTotal ?? null, data.total, data.totalEstimated ?? false, data.dateEstimated ?? false,
+       data.needsReview ?? false, data.imageUrl, JSON.stringify(data.rawAiResponse)]
     );
     return rows[0];
   },
@@ -57,14 +71,19 @@ export const receiptRepository = {
     quantity: number;
     unitPrice: number | null;
     totalPrice: number;
+    unitOfMeasure?: string | null;
+    weight?: number | null;
+    isDiscount?: boolean;
+    needsReview?: boolean;
     categoryId: string | null;
-  }): Promise<ReceiptItemRow> {
+  }, executor: Executor = pool): Promise<ReceiptItemRow> {
     const id = uuidv4();
-    const { rows } = await pool.query(
-      `INSERT INTO receipt_items (id, receipt_id, product_id, name_on_receipt, quantity, unit_price, total_price, category_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    const { rows } = await executor.query(
+      `INSERT INTO receipt_items (id, receipt_id, product_id, name_on_receipt, quantity, unit_price, total_price, unit_of_measure, weight, is_discount, needs_review, category_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-      [id, data.receiptId, data.productId, data.nameOnReceipt, data.quantity, data.unitPrice, data.totalPrice, data.categoryId]
+      [id, data.receiptId, data.productId, data.nameOnReceipt, data.quantity, data.unitPrice, data.totalPrice,
+       data.unitOfMeasure ?? null, data.weight ?? null, data.isDiscount ?? false, data.needsReview ?? false, data.categoryId]
     );
     return rows[0];
   },

@@ -1,4 +1,4 @@
-import pool from '../db/pool';
+import pool, { Executor } from '../db/pool';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface ProductRow {
@@ -18,8 +18,8 @@ export const productRepository = {
     return rows[0] || null;
   },
 
-  async findAllByHousehold(householdId: string): Promise<ProductRow[]> {
-    const { rows } = await pool.query(
+  async findAllByHousehold(householdId: string, executor: Executor = pool): Promise<ProductRow[]> {
+    const { rows } = await executor.query(
       'SELECT * FROM products WHERE household_id = $1 ORDER BY canonical_name',
       [householdId]
     );
@@ -30,11 +30,15 @@ export const productRepository = {
     householdId: string;
     canonicalName: string;
     categoryId: string | null;
-  }): Promise<ProductRow> {
+  }, executor: Executor = pool): Promise<ProductRow> {
     const id = uuidv4();
-    const { rows } = await pool.query(
+    // Idempotent: concurrent scans creating the same product name resolve to the
+    // existing row instead of raising a unique_violation mid-transaction.
+    const { rows } = await executor.query(
       `INSERT INTO products (id, household_id, canonical_name, category_id)
        VALUES ($1, $2, $3, $4)
+       ON CONFLICT (household_id, canonical_name)
+       DO UPDATE SET canonical_name = EXCLUDED.canonical_name
        RETURNING *`,
       [id, data.householdId, data.canonicalName, data.categoryId]
     );

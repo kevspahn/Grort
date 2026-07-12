@@ -1,4 +1,4 @@
-import pool from '../db/pool';
+import pool, { Executor } from '../db/pool';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface StoreRow {
@@ -11,44 +11,14 @@ export interface StoreRow {
 }
 
 export const storeRepository = {
-  async findByBrandAndAddress(
-    householdId: string,
-    brand: string | null,
-    address: string | null
-  ): Promise<StoreRow | null> {
-    if (brand && address) {
-      const { rows } = await pool.query(
-        'SELECT * FROM stores WHERE household_id = $1 AND brand = $2 AND address = $3',
-        [householdId, brand, address]
-      );
-      return rows[0] || null;
-    }
-    if (brand) {
-      const { rows } = await pool.query(
-        'SELECT * FROM stores WHERE household_id = $1 AND brand = $2 AND address IS NULL LIMIT 1',
-        [householdId, brand]
-      );
-      return rows[0] || null;
-    }
-    return null;
-  },
-
-  async findByNameFuzzy(householdId: string, name: string): Promise<StoreRow | null> {
-    const { rows } = await pool.query(
-      'SELECT * FROM stores WHERE household_id = $1 AND LOWER(name) = LOWER($2) LIMIT 1',
-      [householdId, name]
-    );
-    return rows[0] || null;
-  },
-
   async create(data: {
     name: string;
     brand: string | null;
     address: string | null;
     householdId: string;
-  }): Promise<StoreRow> {
+  }, executor: Executor = pool): Promise<StoreRow> {
     const id = uuidv4();
-    const { rows } = await pool.query(
+    const { rows } = await executor.query(
       `INSERT INTO stores (id, name, brand, address, household_id)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
@@ -62,8 +32,8 @@ export const storeRepository = {
     return rows[0] || null;
   },
 
-  async findAllByHousehold(householdId: string): Promise<StoreRow[]> {
-    const { rows } = await pool.query(
+  async findAllByHousehold(householdId: string, executor: Executor = pool): Promise<StoreRow[]> {
+    const { rows } = await executor.query(
       'SELECT * FROM stores WHERE household_id = $1 ORDER BY name',
       [householdId]
     );

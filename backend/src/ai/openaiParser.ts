@@ -1,9 +1,9 @@
 import OpenAI from 'openai';
 import { ReceiptParser } from './types';
-import { ReceiptExtractionResult, ReceiptExtractionResultSchema } from '../shared/schemas';
+import { ReceiptExtractionResult } from '../shared/schemas';
 import { RECEIPT_PARSING_PROMPT } from './promptTemplate';
 import { storageService } from '../services/storageService';
-import { parseReceiptJsonResponse } from './parseResponse';
+import { parseReceiptJsonResponse, sanitizeExtraction } from './parseResponse';
 
 export class OpenAIReceiptParser implements ReceiptParser {
   readonly providerName = 'openai';
@@ -45,6 +45,6 @@ export class OpenAIReceiptParser implements ReceiptParser {
 
     const parsed = parseReceiptJsonResponse(content);
 
-    return ReceiptExtractionResultSchema.parse(parsed);
+    return sanitizeExtraction(parsed);
   }
 }
