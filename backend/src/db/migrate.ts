@@ -42,8 +42,20 @@ async function migrate() {
     }
     console.log(`Executing migration: ${file}`);
     const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-    await pool.query(sql);
-    await pool.query('INSERT INTO migrations (name) VALUES ($1)', [file]);
+    // Each migration runs in its own transaction: a failure rolls the whole
+    // file back cleanly rather than leaving the schema half-applied.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(sql);
+      await client.query('INSERT INTO migrations (name) VALUES ($1)', [file]);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
     console.log(`Completed: ${file}`);
   }
 

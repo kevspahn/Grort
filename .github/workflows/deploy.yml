@@ -5,17 +5,58 @@ on:
     branches: [main]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: grort
+          POSTGRES_PASSWORD: grort
+          POSTGRES_DB: grort
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U grort"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://grort:grort@localhost:5433/grort
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+      - name: Typecheck
+        working-directory: backend
+        run: npx tsc --noEmit
+      - name: Migrate test database
+        working-directory: backend
+        run: npx tsx src/db/migrate.ts
+      - name: Run tests
+        working-directory: backend
+        run: npm test
 
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t ghcr.io/kevspahn/grort:latest .
+        run: |
+          docker build \
+            -t ghcr.io/kevspahn/grort:latest \
+            -t ghcr.io/kevspahn/grort:${{ github.sha }} \
+            .
 
       - name: Save image as tarball
-        run: docker save ghcr.io/kevspahn/grort:latest | gzip > grort.tar.gz
+        run: docker save ghcr.io/kevspahn/grort:latest ghcr.io/kevspahn/grort:${{ github.sha }} | gzip > grort.tar.gz
 
       - name: Copy image to droplet
         uses: appleboy/scp-action@v0.1.7
@@ -37,3 +78,4 @@ jobs:
             rm /tmp/grort.tar.gz
             cd ~/spahndigital
             docker compose up -d grort
+            docker image prune -f
