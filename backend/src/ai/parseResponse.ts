@@ -60,7 +60,7 @@ export function parseReceiptJsonResponse(content: string): unknown {
       throw new ReceiptParseError('Image does not appear to be a grocery receipt');
     }
 
-    throw new Error(`Failed to parse AI response as JSON: ${trimmed.substring(0, 200)}`);
+    throw new ReceiptParseError('Could not read a receipt from this image');
   }
 }
 

@@ -109,6 +109,30 @@ describe('receiptProcessingService.processReceipt', () => {
     expect(r2.storeId).toBe(r1.storeId);
   });
 
+  it('keeps two different-address locations of one brand as separate stores', async () => {
+    stubParser(extraction({
+      storeName: 'Cub Foods', storeBrand: 'Cub Foods', storeAddress: '111 First St, Edina', receiptDate: '2026-06-01',
+      items: [{ nameOnReceipt: 'X', quantity: 1, unitPrice: 1, totalPrice: 1, unitOfMeasure: null, weight: null, isDiscount: false, suggestedCategory: null, suggestedCanonicalName: 'Cub Item X' }],
+    }));
+    const a = await receiptProcessingService.processReceipt('local://cub1.jpg', userId, householdId);
+    stubParser(extraction({
+      storeName: 'Cub Foods', storeBrand: 'Cub Foods', storeAddress: '999 Second Ave, Hopkins', receiptDate: '2026-06-02',
+      items: [{ nameOnReceipt: 'Y', quantity: 1, unitPrice: 1, totalPrice: 1, unitOfMeasure: null, weight: null, isDiscount: false, suggestedCategory: null, suggestedCanonicalName: 'Cub Item Y' }],
+    }));
+    const b = await receiptProcessingService.processReceipt('local://cub2.jpg', userId, householdId);
+    expect(b.storeId).not.toBe(a.storeId);
+
+    // A later re-scan of the FIRST location (address unread) should still match it,
+    // not create a third store, because address doesn't conflict and... it now has 2 same-brand
+    // stores, so it must match on address. Unread address -> falls through to name+addrOk.
+    stubParser(extraction({
+      storeName: 'Cub Foods', storeBrand: 'Cub Foods', storeAddress: '111 First St, Edina', receiptDate: '2026-06-03',
+      items: [{ nameOnReceipt: 'Z', quantity: 1, unitPrice: 1, totalPrice: 1, unitOfMeasure: null, weight: null, isDiscount: false, suggestedCategory: null, suggestedCanonicalName: 'Cub Item Z' }],
+    }));
+    const c = await receiptProcessingService.processReceipt('local://cub3.jpg', userId, householdId);
+    expect(c.storeId).toBe(a.storeId);
+  });
+
   it('does not duplicate a product on word-order / punctuation variance (#3)', async () => {
     stubParser(extraction({
       receiptDate: '2026-05-06',

@@ -76,11 +76,13 @@ export const receiptProcessingService = {
     const total = extraction.total ?? Math.round(itemsSum * 100) / 100;
 
     // Reconciliation: items (including negative discount lines) should sum to
-    // the subtotal. If they don't, flag the receipt for human review.
-    const reconcileTarget = extraction.subtotal ?? total;
+    // the PRE-TAX amount. Prefer the printed subtotal; else derive it from
+    // total − tax. If neither is known, we can't reconcile, so don't flag.
+    const preTaxTarget =
+      extraction.subtotal ??
+      (extraction.total != null && extraction.tax != null ? extraction.total - extraction.tax : null);
     const needsReview =
-      reconcileTarget != null &&
-      Math.abs(reconcileTarget - itemsSum) > RECONCILE_TOLERANCE;
+      preTaxTarget != null && Math.abs(preTaxTarget - itemsSum) > RECONCILE_TOLERANCE;
 
     // Step 3: Persist store + receipt + items atomically.
     const client = await pool.connect();
@@ -223,19 +225,29 @@ async function resolveStore(
   const nameKey = normalizeName(storeName);
 
   const existing = await storeRepository.findAllByHousehold(householdId, client);
+  const addr = (s: StoreRow) => (s.address ? normalizeName(s.address) : '');
+  // Two known-but-different addresses mean genuinely different locations.
+  const addrOk = (sAddr: string) => !addrKey || !sAddr || addrKey === sAddr;
 
-  const match = existing.find((s) => {
-    const sBrand = s.brand ? normalizeName(s.brand) : '';
-    const sAddr = s.address ? normalizeName(s.address) : '';
-    const sName = normalizeName(s.name);
-    // Strong match: same brand and same address.
-    if (brandKey && addrKey && sBrand === brandKey && sAddr === addrKey) return true;
-    // Same brand, and at least one side has no address to contradict.
-    if (brandKey && sBrand === brandKey && (!addrKey || !sAddr)) return true;
-    // Same normalized display name.
-    if (nameKey && sName === nameKey) return true;
-    return false;
-  });
+  // 1. Strongest: same brand and same address.
+  let match = existing.find(
+    (s) => brandKey && addrKey && s.brand && normalizeName(s.brand) === brandKey && addr(s) === addrKey
+  );
+
+  // 2. Same brand with only ONE store of that brand and no address conflict —
+  //    a re-scan whose address just wasn't read. If the household has multiple
+  //    locations of the brand, fall through and require an address match instead.
+  if (!match && brandKey) {
+    const sameBrand = existing.filter((s) => s.brand && normalizeName(s.brand) === brandKey);
+    if (sameBrand.length === 1 && addrOk(addr(sameBrand[0]))) {
+      match = sameBrand[0];
+    }
+  }
+
+  // 3. Same normalized display name, with no conflicting address.
+  if (!match && nameKey) {
+    match = existing.find((s) => normalizeName(s.name) === nameKey && addrOk(addr(s)));
+  }
 
   if (match) return match;
 
