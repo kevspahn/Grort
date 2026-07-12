@@ -200,6 +200,7 @@ export const receiptRepository = {
 
   async updateItem(
     itemId: string,
+    receiptId: string,
     data: {
       nameOnReceipt?: string;
       quantity?: number;
@@ -208,7 +209,7 @@ export const receiptRepository = {
       categoryId?: string | null;
       productId?: string | null;
     }
-  ): Promise<ReceiptItemRow> {
+  ): Promise<ReceiptItemRow | null> {
     const fields: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
@@ -240,11 +241,14 @@ export const receiptRepository = {
 
     if (fields.length === 0) throw new Error('No fields to update');
 
-    values.push(itemId);
+    // Scope by receipt_id so an item can only be edited through its own
+    // receipt — prevents editing another receipt's items via a crafted itemId.
+    values.push(itemId, receiptId);
     const { rows } = await pool.query(
-      `UPDATE receipt_items SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+      `UPDATE receipt_items SET ${fields.join(', ')}
+       WHERE id = $${idx} AND receipt_id = $${idx + 1} RETURNING *`,
       values
     );
-    return rows[0];
+    return rows[0] || null;
   },
 };

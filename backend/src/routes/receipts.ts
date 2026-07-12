@@ -203,8 +203,12 @@ router.put('/:id/items/:itemId', async (req: Request<{ id: string; itemId: strin
       res.status(404).json({ error: 'Receipt not found' });
       return;
     }
+    if (!req.householdId && receipt.user_id !== req.user!.id) {
+      res.status(404).json({ error: 'Receipt not found' });
+      return;
+    }
 
-    const updatedItem = await receiptRepository.updateItem(req.params.itemId, {
+    const updatedItem = await receiptRepository.updateItem(req.params.itemId, receipt.id, {
       nameOnReceipt: body.nameOnReceipt,
       quantity: body.quantity,
       unitPrice: body.unitPrice,
@@ -212,6 +216,11 @@ router.put('/:id/items/:itemId', async (req: Request<{ id: string; itemId: strin
       categoryId: body.categoryId,
       productId: body.productId,
     });
+
+    if (!updatedItem) {
+      res.status(404).json({ error: 'Receipt item not found' });
+      return;
+    }
 
     res.json(updatedItem);
   } catch (err) {

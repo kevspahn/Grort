@@ -16,6 +16,10 @@ dotenv.config();
 
 const app = express();
 
+// Behind nginx in production — trust the first proxy so req.ip reflects the
+// real client (correct rate-limiting) without trusting arbitrary XFF headers.
+app.set('trust proxy', 1);
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {

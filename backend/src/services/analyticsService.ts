@@ -176,10 +176,10 @@ export const analyticsService = {
       params
     );
 
-    // Get product name
+    // Get product name (scoped to household so foreign product names never leak)
     const productResult = await pool.query(
-      'SELECT canonical_name FROM products WHERE id = $1',
-      [productId]
+      'SELECT canonical_name FROM products WHERE id = $1 AND household_id = $2',
+      [productId, householdId]
     );
 
     return {
@@ -216,8 +216,8 @@ export const analyticsService = {
       );
 
       const productResult = await pool.query(
-        'SELECT canonical_name FROM products WHERE id = $1',
-        [productId]
+        'SELECT canonical_name FROM products WHERE id = $1 AND household_id = $2',
+        [productId, householdId]
       );
 
       const stores = rows.map((r: any) => ({

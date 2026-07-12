@@ -2,16 +2,26 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { userRepository, UserRow } from '../repositories/userRepository';
 
+// Refuse to boot in production with a missing/placeholder secret — otherwise
+// every token would be forgeable with the well-known fallback value.
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set in production');
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 const JWT_EXPIRES_IN = '7d';
 
 export interface JwtPayload {
   userId: string;
   email: string;
+  tokenVersion: number;
 }
 
 function generateToken(user: UserRow): string {
-  const payload: JwtPayload = { userId: user.id, email: user.email };
+  const payload: JwtPayload = {
+    userId: user.id,
+    email: user.email,
+    tokenVersion: user.token_version ?? 0,
+  };
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
@@ -74,6 +84,21 @@ export const authService = {
       googleId,
     });
     return formatUserResponse(user);
+  },
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await userRepository.findById(userId);
+    if (!user || !user.password_hash) {
+      throw new Error('Cannot change password for this account');
+    }
+    const valid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!valid) {
+      throw new Error('Current password is incorrect');
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const updated = await userRepository.updatePassword(userId, passwordHash);
+    // Return a fresh token so the caller stays logged in on this device.
+    return formatUserResponse(updated);
   },
 
   verifyToken(token: string): JwtPayload {

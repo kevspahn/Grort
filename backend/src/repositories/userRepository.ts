@@ -9,6 +9,7 @@ export interface UserRow {
   google_id: string | null;
   household_id: string | null;
   household_role: string | null;
+  token_version: number;
   created_at: Date;
 }
 
@@ -60,6 +61,16 @@ export const userRepository = {
     const { rows } = await pool.query(
       `UPDATE users SET google_id = $1 WHERE id = $2 RETURNING *`,
       [googleId, userId]
+    );
+    return rows[0];
+  },
+
+  /** Update the password hash and bump token_version to revoke old tokens. */
+  async updatePassword(userId: string, passwordHash: string): Promise<UserRow> {
+    const { rows } = await pool.query(
+      `UPDATE users SET password_hash = $1, token_version = token_version + 1
+       WHERE id = $2 RETURNING *`,
+      [passwordHash, userId]
     );
     return rows[0];
   },

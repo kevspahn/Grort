@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authMiddleware, requireHousehold, requireHouseholdOwner } from '../middleware/auth';
+import { authMiddleware, requireHousehold, requireHouseholdOwner, requireOwnHousehold } from '../middleware/auth';
 import { householdService } from '../services/householdService';
 import { CreateHouseholdSchema, InviteMemberSchema } from '../shared/schemas';
 import { ZodError } from 'zod';
@@ -26,7 +26,7 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/:id/invite', requireHousehold, requireHouseholdOwner, async (req: Request<{ id: string }>, res: Response) => {
+router.post('/:id/invite', requireHousehold, requireOwnHousehold, requireHouseholdOwner, async (req: Request<{ id: string }>, res: Response) => {
   try {
     const body = InviteMemberSchema.parse(req.body);
     await householdService.inviteMember(req.params.id, req.user!.id, body.email);
@@ -44,7 +44,7 @@ router.post('/:id/invite', requireHousehold, requireHouseholdOwner, async (req: 
   }
 });
 
-router.delete('/:id/members/:userId', requireHousehold, requireHouseholdOwner, async (req: Request<{ id: string; userId: string }>, res: Response) => {
+router.delete('/:id/members/:userId', requireHousehold, requireOwnHousehold, requireHouseholdOwner, async (req: Request<{ id: string; userId: string }>, res: Response) => {
   try {
     await householdService.removeMember(req.params.id, req.user!.id, req.params.userId);
     res.json({ message: 'Member removed successfully' });
@@ -57,7 +57,7 @@ router.delete('/:id/members/:userId', requireHousehold, requireHouseholdOwner, a
   }
 });
 
-router.get('/:id/members', requireHousehold, async (req: Request<{ id: string }>, res: Response) => {
+router.get('/:id/members', requireHousehold, requireOwnHousehold, async (req: Request<{ id: string }>, res: Response) => {
   try {
     const members = await householdService.getMembers(req.params.id);
     res.json(members.map((m) => ({
