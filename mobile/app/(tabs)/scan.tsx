@@ -1,17 +1,22 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image, Platform,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image, Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import apiClient from '../../src/api/client';
+import { useAuth } from '../../src/contexts/AuthContext';
+import { showAlert } from '../../src/lib/showAlert';
 import { colors, spacing, fontSize } from '../../src/styles/theme';
 
 export default function ScanScreen() {
+  const { user, refreshUser } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [householdName, setHouseholdName] = useState('My Household');
+  const [isCreatingHousehold, setIsCreatingHousehold] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
   async function pickFromGallery() {
@@ -20,6 +25,53 @@ export default function ScanScreen() {
       setCapturedImage(result.assets[0].uri);
       await processImage(result.assets[0].uri);
     }
+  }
+
+  async function handleCreateHousehold() {
+    if (!householdName.trim()) {
+      showAlert('Error', 'Please enter a household name');
+      return;
+    }
+    setIsCreatingHousehold(true);
+    try {
+      await apiClient.post('/households', { name: householdName.trim() });
+      await refreshUser();
+    } catch (err: any) {
+      showAlert('Error', err?.response?.data?.error || 'Failed to create household');
+    } finally {
+      setIsCreatingHousehold(false);
+    }
+  }
+
+  // Onboarding gate: a user with no household cannot scan yet.
+  if (!user?.householdId) {
+    return (
+      <View style={styles.webContainer}>
+        <View style={styles.webCard}>
+          <Text style={styles.webTitle}>Create your household to start scanning</Text>
+          <Text style={styles.webText}>
+            Receipts are shared within a household. Create one to begin scanning and tracking your grocery spending.
+          </Text>
+          <TextInput
+            style={styles.householdInput}
+            value={householdName}
+            onChangeText={setHouseholdName}
+            placeholder="Household name"
+            placeholderTextColor={colors.textSecondary}
+            editable={!isCreatingHousehold}
+          />
+          <TouchableOpacity
+            style={[styles.button, isCreatingHousehold && styles.buttonDisabled]}
+            onPress={handleCreateHousehold}
+            disabled={isCreatingHousehold}
+          >
+            {isCreatingHousehold
+              ? <ActivityIndicator color={colors.textOnPrimary} />
+              : <Text style={styles.buttonText}>Create Household</Text>}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   }
 
   if (Platform.OS === 'web') {
@@ -113,6 +165,13 @@ export default function ScanScreen() {
 
       router.push({ pathname: '/(tabs)/receipt-review', params: { receiptData: JSON.stringify(response.data) } });
     } catch (err: any) {
+      if (err?.response?.data?.code === 'NO_HOUSEHOLD') {
+        // Household was removed / never created — refresh so the onboarding gate shows.
+        showError('Create a household first', 'You need a household before scanning receipts. Create one to continue.');
+        await refreshUser();
+        setCapturedImage(null);
+        return;
+      }
       const message = err?.response?.data?.error || err?.message || 'Failed to process receipt. Please try again.';
       showError('Processing Failed', message);
       setCapturedImage(null);
@@ -168,7 +227,9 @@ const styles = StyleSheet.create({
   permissionContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg, backgroundColor: colors.background },
   permissionText: { fontSize: fontSize.md, color: colors.text, textAlign: 'center', marginBottom: spacing.lg },
   button: { backgroundColor: colors.primary, padding: spacing.md, borderRadius: 8, width: '100%', alignItems: 'center', marginBottom: spacing.md },
+  buttonDisabled: { opacity: 0.7 },
   buttonText: { color: colors.textOnPrimary, fontSize: fontSize.md, fontWeight: 'bold' },
+  householdInput: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: spacing.md, fontSize: fontSize.md, color: colors.text, width: '100%', marginBottom: spacing.md },
   secondaryButton: { padding: spacing.md, borderRadius: 8, borderWidth: 1, borderColor: colors.primary, width: '100%', alignItems: 'center' },
   secondaryButtonText: { color: colors.primary, fontSize: fontSize.md },
   webContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg, backgroundColor: colors.background },

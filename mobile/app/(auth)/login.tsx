@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { colors, spacing, fontSize } from '../../src/styles/theme';
+import { showAlert } from '../../src/lib/showAlert';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -19,7 +20,7 @@ export default function LoginScreen() {
     }
 
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert('Error', 'Please fill in all fields');
       return;
     }
 
@@ -29,7 +30,7 @@ export default function LoginScreen() {
       router.replace('/(tabs)/scan');
     } catch (err: any) {
       const message = err?.response?.data?.error || 'Login failed. Please try again.';
-      Alert.alert('Login Failed', message);
+      showAlert('Login Failed', message);
     } finally {
       setIsLoading(false);
     }

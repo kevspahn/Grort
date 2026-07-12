@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function storeAuth(authToken: string, authUser: User) {
-    const userWithDefaults = { receiptCount: 0, ...authUser };
+    const userWithDefaults = { ...authUser, receiptCount: authUser.receiptCount ?? 0 };
     await setAuthItem('auth_token', authToken);
     await setAuthItem('auth_user', JSON.stringify(userWithDefaults));
     setToken(authToken);

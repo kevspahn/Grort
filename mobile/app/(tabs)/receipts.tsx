@@ -68,7 +68,16 @@ export default function ReceiptsScreen() {
           <Text style={styles.date}>{date}</Text>
           <Text style={styles.itemCount}>{item.item_count} items</Text>
         </View>
-        <Text style={styles.total}>${Number(item.total).toFixed(2)}</Text>
+        <View style={styles.receiptRight}>
+          <Text style={styles.total}>${Number(item.total).toFixed(2)}</Text>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDelete(item.id)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.deleteButtonText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     );
   }
@@ -94,7 +103,10 @@ const styles = StyleSheet.create({
   storeName: { fontSize: fontSize.md, fontWeight: '600', color: colors.text },
   date: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 },
   itemCount: { fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 },
+  receiptRight: { alignItems: 'flex-end', gap: spacing.xs },
   total: { fontSize: fontSize.lg, fontWeight: 'bold', color: colors.primary },
+  deleteButton: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: 6, borderWidth: 1, borderColor: colors.error },
+  deleteButtonText: { color: colors.error, fontSize: fontSize.xs, fontWeight: '600' },
   emptyText: { fontSize: fontSize.lg, color: colors.textSecondary },
   emptySubtext: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: spacing.sm },
 });

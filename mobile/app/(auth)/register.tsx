@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { colors, spacing, fontSize } from '../../src/styles/theme';
+import { showAlert } from '../../src/lib/showAlert';
 
 export default function RegisterScreen() {
   const { register } = useAuth();
@@ -21,15 +22,15 @@ export default function RegisterScreen() {
     }
 
     if (!name || !email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert('Error', 'Please fill in all fields');
       return;
     }
     if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
+      showAlert('Error', 'Password must be at least 8 characters');
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      showAlert('Error', 'Passwords do not match');
       return;
     }
 
@@ -39,7 +40,7 @@ export default function RegisterScreen() {
       router.replace('/(tabs)/scan');
     } catch (err: any) {
       const message = err?.response?.data?.error || 'Registration failed. Please try again.';
-      Alert.alert('Registration Failed', message);
+      showAlert('Registration Failed', message);
     } finally {
       setIsLoading(false);
     }
