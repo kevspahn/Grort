@@ -24,6 +24,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://grort:grort@localhost:5433/grort
       NODE_ENV: test
+      PORT: 3001
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
