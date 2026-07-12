@@ -1,12 +1,15 @@
 # Grort — Status
 
-**Last updated:** 2026-05-12 by Claude
-**Phase:** Production (PWA live, mobile app store launch pending)
+**Last updated:** 2026-07-12 by Claude
+**Phase:** Production; comprehensive review + fixes complete (deploying `review-fixes`)
 **Hosting:** Hetzner shared droplet (spahndigital.com), Docker Compose + nginx, accessible at grort.app
 
 ## Current Focus
 
-PWA is live and feature-complete for MVP; next priority is app store submission (iOS + Android) to unlock the $3.99 one-time purchase revenue tier.
+Full-stack review shipped fixes for the onboarding funnel-kill, security (IDOR,
+rate limiting, JWT revocation), AI data quality (reconciliation, discounts,
+dedup), and CI/infra. Production now has verified nightly backups. Deploying the
+`review-fixes` branch, after which app-store submission resumes.
 
 ## Project Map
 
@@ -23,6 +26,8 @@ Grort is a personal receipt-scanning and grocery price-tracking app. Users photo
 
 ## Next Steps
 
+- [ ] Confirm the `review-fixes` deploy is healthy; verify migrations 004/005 applied in prod
+- [ ] Post-deploy: flag the ~17 historically non-reconciling receipts as needs_review (needed 005's column)
 - [ ] Submit to Apple App Store and Google Play Store ($3.99 one-time — Tier 1 revenue opportunity)
 - [ ] Replace placeholder Expo assets (`android-icon-*`) with Grort-branded icons (required for app store submission)
 - [ ] Complete Google OAuth — wire up client-side sign-in button on web; current backend only verifies tokens
@@ -37,6 +42,13 @@ No hard blockers. App store submission requires branded assets and a polished PW
 
 ## Recent Decisions
 
+- 2026-07-12: Comprehensive review + fixes (9 commits on `review-fixes`). Added
+  verified nightly DB backups to DO Spaces; revoked cross-database PUBLIC CONNECT;
+  repaired production data (store dedup 13→8, removed 2 test accounts, cleaned
+  garbage products). Fixed the onboarding funnel-kill (household-less scan now
+  guided, not crashed), IDOR paths, added rate limiting + JWT revocation, receipt
+  reconciliation/discounts/dedup, and a CI test gate. Auto-create-household was
+  rejected — it broke the invite model; a scan-time gate + CTA was used instead.
 - 2026-04-05: Fixed Expo web build hardcoding local IP as API URL in Docker; now uses relative URLs via empty `EXPO_PUBLIC_API_URL`
 - 2026-04-04: Switched deployment from GHCR to direct SCP transfer (Docker image as tarball) to avoid GitHub Packages permission issues
 - 2026-04-04: Shipped PWA branch — service worker, web manifest, offline banner, mascot evolution (Baby/Cyber/Mecha Grort tiers), receipt photo thumbnails, trends drill-down modals
