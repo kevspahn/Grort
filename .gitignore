@@ -8,8 +8,12 @@ coverage/
 android/
 ios/
 uploads/
+.dev-data/
 .playwright-cli/
 .playwright-mcp/
 
 # Dashboard sensitive sidecar
 STATUS.local.md
+
+# Subagent-driven-development scratch ledger
+.superpowers/
