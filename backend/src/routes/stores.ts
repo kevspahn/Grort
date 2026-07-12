@@ -26,7 +26,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // PUT /stores/:id
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const body = UpdateStoreSchema.parse(req.body);
 
@@ -51,7 +51,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     });
   } catch (err) {
     if (err instanceof ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
       return;
     }
     res.status(500).json({ error: 'Internal server error' });
@@ -80,7 +80,7 @@ router.post('/merge', async (req: Request, res: Response) => {
     res.json({ message: 'Stores merged successfully', targetId: body.targetId });
   } catch (err) {
     if (err instanceof ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
       return;
     }
     res.status(500).json({ error: 'Internal server error' });

@@ -15,7 +15,7 @@ router.post('/', async (req: Request, res: Response) => {
     res.status(201).json(household);
   } catch (err) {
     if (err instanceof ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
       return;
     }
     if (err instanceof Error) {
@@ -26,14 +26,14 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/:id/invite', requireHousehold, requireHouseholdOwner, async (req: Request, res: Response) => {
+router.post('/:id/invite', requireHousehold, requireHouseholdOwner, async (req: Request<{ id: string }>, res: Response) => {
   try {
     const body = InviteMemberSchema.parse(req.body);
     await householdService.inviteMember(req.params.id, req.user!.id, body.email);
     res.json({ message: 'Member invited successfully' });
   } catch (err) {
     if (err instanceof ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
       return;
     }
     if (err instanceof Error) {
@@ -44,7 +44,7 @@ router.post('/:id/invite', requireHousehold, requireHouseholdOwner, async (req: 
   }
 });
 
-router.delete('/:id/members/:userId', requireHousehold, requireHouseholdOwner, async (req: Request, res: Response) => {
+router.delete('/:id/members/:userId', requireHousehold, requireHouseholdOwner, async (req: Request<{ id: string; userId: string }>, res: Response) => {
   try {
     await householdService.removeMember(req.params.id, req.user!.id, req.params.userId);
     res.json({ message: 'Member removed successfully' });
@@ -57,7 +57,7 @@ router.delete('/:id/members/:userId', requireHousehold, requireHouseholdOwner, a
   }
 });
 
-router.get('/:id/members', requireHousehold, async (req: Request, res: Response) => {
+router.get('/:id/members', requireHousehold, async (req: Request<{ id: string }>, res: Response) => {
   try {
     const members = await householdService.getMembers(req.params.id);
     res.json(members.map((m) => ({

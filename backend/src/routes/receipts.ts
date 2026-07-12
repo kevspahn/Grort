@@ -40,6 +40,14 @@ router.post('/scan', (req, res, next) => {
       return;
     }
 
+    if (!req.householdId) {
+      res.status(403).json({
+        error: 'Create a household before scanning receipts.',
+        code: 'NO_HOUSEHOLD',
+      });
+      return;
+    }
+
     // Upload image
     const imageUrl = await storageService.uploadImage(
       req.file.buffer,
@@ -51,7 +59,7 @@ router.post('/scan', (req, res, next) => {
     const result = await receiptProcessingService.processReceipt(
       imageUrl,
       req.user!.id,
-      req.householdId || null
+      req.householdId
     );
 
     res.status(201).json(result);
@@ -61,11 +69,8 @@ router.post('/scan', (req, res, next) => {
       res.status(err.statusCode).json({ error: err.message });
       return;
     }
-    if (err instanceof Error) {
-      res.status(500).json({ error: `Receipt processing failed: ${err.message}` });
-      return;
-    }
-    res.status(500).json({ error: 'Receipt processing failed' });
+    // Never leak internal error text to the client.
+    res.status(500).json({ error: 'We could not process that receipt. Please try again.' });
   }
 });
 
@@ -102,7 +107,7 @@ router.get('/', async (req: Request, res: Response) => {
     });
   } catch (err) {
     if (err instanceof ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
       return;
     }
     res.status(500).json({ error: 'Internal server error' });
@@ -110,7 +115,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // GET /receipts/:id — receipt detail with items
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const receipt = await receiptRepository.findById(req.params.id);
     if (!receipt) {
@@ -151,7 +156,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE /receipts/:id
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', async (req: Request<{ id: string }>, res: Response) => {
   try {
     const receipt = await receiptRepository.findById(req.params.id);
     if (!receipt) {
@@ -184,7 +189,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // PUT /receipts/:id/items/:itemId — edit a receipt item
-router.put('/:id/items/:itemId', async (req: Request, res: Response) => {
+router.put('/:id/items/:itemId', async (req: Request<{ id: string; itemId: string }>, res: Response) => {
   try {
     const body = UpdateReceiptItemSchema.parse(req.body);
 
@@ -211,7 +216,7 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response) => {
     res.json(updatedItem);
   } catch (err) {
     if (err instanceof ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
       return;
     }
     res.status(500).json({ error: 'Internal server error' });

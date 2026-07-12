@@ -24,7 +24,7 @@ router.get('/spending', async (req: Request, res: Response) => {
     res.json(result);
   } catch (err) {
     if (err instanceof ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
       return;
     }
     res.status(500).json({ error: 'Internal server error' });
@@ -52,7 +52,7 @@ router.get('/category-items', async (req: Request, res: Response) => {
 });
 
 // GET /analytics/price-history/:productId
-router.get('/price-history/:productId', requireHousehold, async (req: Request, res: Response) => {
+router.get('/price-history/:productId', requireHousehold, async (req: Request<{ productId: string }>, res: Response) => {
   try {
     const query = PriceHistoryQuerySchema.parse(req.query);
 
@@ -68,7 +68,7 @@ router.get('/price-history/:productId', requireHousehold, async (req: Request, r
     res.json(result);
   } catch (err) {
     if (err instanceof ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
       return;
     }
     res.status(500).json({ error: 'Internal server error' });
@@ -100,7 +100,7 @@ router.get('/store-comparison', requireHousehold, async (req: Request, res: Resp
     res.json(result);
   } catch (err) {
     if (err instanceof ZodError) {
-      res.status(400).json({ error: 'Validation failed', details: err.errors });
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
       return;
     }
     res.status(500).json({ error: 'Internal server error' });

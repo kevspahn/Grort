@@ -36,7 +36,7 @@ export const receiptProcessingService = {
   async processReceipt(
     imageUrl: string,
     userId: string,
-    householdId: string | null
+    householdId: string
   ): Promise<ProcessedReceipt> {
     // Step 1: Parse receipt with AI
     const parser = getReceiptParser();
@@ -145,17 +145,9 @@ export const receiptProcessingService = {
 
 async function resolveStore(
   extraction: ReceiptExtractionResult,
-  householdId: string | null
+  householdId: string
 ) {
-  if (!householdId) {
-    // For users without a household, create a temporary store record
-    return storeRepository.create({
-      name: extraction.storeName,
-      brand: extraction.storeBrand,
-      address: extraction.storeAddress,
-      householdId: householdId!,
-    });
-  }
+  const storeName = extraction.storeName ?? 'Unknown Store';
 
   // Try to match existing store by brand+address
   let store = await storeRepository.findByBrandAndAddress(
@@ -167,13 +159,13 @@ async function resolveStore(
   if (store) return store;
 
   // Try by name
-  store = await storeRepository.findByNameFuzzy(householdId, extraction.storeName);
+  store = await storeRepository.findByNameFuzzy(householdId, storeName);
 
   if (store) return store;
 
   // Create new store
   return storeRepository.create({
-    name: extraction.storeName,
+    name: storeName,
     brand: extraction.storeBrand,
     address: extraction.storeAddress,
     householdId,

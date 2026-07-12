@@ -28,7 +28,24 @@ app.use(helmet({
     },
   },
 }));
-app.use(cors());
+// Restrict CORS to configured origins. Requests without an Origin header
+// (native app, curl, same-origin) are always allowed; browsers from unknown
+// web origins are rejected. Configure via CORS_ORIGINS (comma-separated).
+const allowedOrigins = (process.env.CORS_ORIGINS || 'https://grort.app')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+  })
+);
 app.use(express.json());
 
 // Serve local uploads in dev mode
@@ -67,6 +84,18 @@ if (fs.existsSync(publicDir)) {
     res.sendFile(path.join(publicDir, 'index.html'));
   });
 }
+
+// Global error handler — last middleware. Guarantees no internal error text,
+// stack trace, or file path ever reaches the client, regardless of NODE_ENV.
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Unhandled error:', err);
+  if (res.headersSent) return;
+  if (err instanceof Error && err.message === 'Not allowed by CORS') {
+    res.status(403).json({ error: 'Origin not allowed' });
+    return;
+  }
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 const PORT = process.env.PORT || 3000;
 

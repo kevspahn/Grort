@@ -9,7 +9,7 @@ const router = Router();
 
 function handleZodError(res: Response, err: unknown) {
   if (err instanceof ZodError) {
-    res.status(400).json({ error: 'Validation failed', details: err.errors });
+    res.status(400).json({ error: 'Validation failed', details: err.issues });
     return true;
   }
   return false;
@@ -77,23 +77,27 @@ router.post('/google', async (req: Request, res: Response) => {
 });
 
 router.get('/me', authMiddleware, async (req: Request, res: Response) => {
-  const pool = (await import('../db/pool')).default;
-  const countResult = await pool.query(
-    'SELECT COUNT(*)::int AS count FROM receipts WHERE user_id = $1',
-    [req.user!.id]
-  );
-  const receiptCount = countResult.rows[0].count;
+  try {
+    const pool = (await import('../db/pool')).default;
+    const countResult = await pool.query(
+      'SELECT COUNT(*)::int AS count FROM receipts WHERE user_id = $1',
+      [req.user!.id]
+    );
+    const receiptCount = countResult.rows[0].count;
 
-  res.json({
-    user: {
-      id: req.user!.id,
-      email: req.user!.email,
-      name: req.user!.name,
-      householdId: req.user!.household_id,
-      householdRole: req.user!.household_role,
-      receiptCount,
-    },
-  });
+    res.json({
+      user: {
+        id: req.user!.id,
+        email: req.user!.email,
+        name: req.user!.name,
+        householdId: req.user!.household_id,
+        householdRole: req.user!.household_role,
+        receiptCount,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 export default router;
