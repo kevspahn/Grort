@@ -4,12 +4,21 @@ import { authMiddleware } from '../middleware/auth';
 import { storageService } from '../services/storageService';
 import { receiptProcessingService } from '../services/receiptProcessingService';
 import { receiptRepository } from '../repositories/receiptRepository';
-import { ReceiptsQuerySchema, UpdateReceiptItemSchema } from '../shared/schemas';
+import { ReceiptsQuerySchema, UpdateReceiptItemSchema, AddReceiptItemSchema } from '../shared/schemas';
 import { ZodError } from 'zod';
 import { ReceiptParseError } from '../ai/parseResponse';
 
 const router = Router();
 router.use(authMiddleware);
+
+// A user owns a receipt if it's in their household, or (no household) is theirs.
+function ownsReceipt(
+  req: Request,
+  receipt: { household_id: string | null; user_id: string }
+): boolean {
+  if (req.householdId) return receipt.household_id === req.householdId;
+  return receipt.user_id === req.user!.id;
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -228,6 +237,58 @@ router.put('/:id/items/:itemId', async (req: Request<{ id: string; itemId: strin
       res.status(400).json({ error: 'Validation failed', details: err.issues });
       return;
     }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /receipts/:id/items — add a missing item the AI dropped
+router.post('/:id/items', async (req: Request<{ id: string }>, res: Response) => {
+  try {
+    const body = AddReceiptItemSchema.parse(req.body);
+
+    const receipt = await receiptRepository.findById(req.params.id);
+    if (!receipt || !ownsReceipt(req, receipt)) {
+      res.status(404).json({ error: 'Receipt not found' });
+      return;
+    }
+
+    const item = await receiptRepository.createItem({
+      receiptId: receipt.id,
+      productId: null,
+      nameOnReceipt: body.nameOnReceipt,
+      quantity: body.quantity,
+      unitPrice: body.unitPrice,
+      totalPrice: body.totalPrice,
+      categoryId: body.categoryId,
+    });
+
+    res.status(201).json(item);
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
+      return;
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /receipts/:id/items/:itemId — remove a hallucinated item
+router.delete('/:id/items/:itemId', async (req: Request<{ id: string; itemId: string }>, res: Response) => {
+  try {
+    const receipt = await receiptRepository.findById(req.params.id);
+    if (!receipt || !ownsReceipt(req, receipt)) {
+      res.status(404).json({ error: 'Receipt not found' });
+      return;
+    }
+
+    const deleted = await receiptRepository.deleteItem(req.params.itemId, receipt.id);
+    if (!deleted) {
+      res.status(404).json({ error: 'Receipt item not found' });
+      return;
+    }
+
+    res.json({ message: 'Item deleted' });
+  } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });

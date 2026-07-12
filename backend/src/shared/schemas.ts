@@ -182,6 +182,15 @@ export const ReceiptSchema = z.object({
 });
 export type Receipt = z.infer<typeof ReceiptSchema>;
 
+export const AddReceiptItemSchema = z.object({
+  nameOnReceipt: z.string().min(1),
+  quantity: z.number().positive().default(1),
+  unitPrice: z.number().nullable().default(null),
+  totalPrice: z.number(),
+  categoryId: z.string().uuid().nullable().default(null),
+});
+export type AddReceiptItemInput = z.infer<typeof AddReceiptItemSchema>;
+
 export const UpdateReceiptItemSchema = z.object({
   nameOnReceipt: z.string().min(1).optional(),
   quantity: z.number().positive().optional(),

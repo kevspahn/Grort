@@ -217,6 +217,14 @@ export const receiptRepository = {
     return (result.rowCount ?? 0) > 0;
   },
 
+  async deleteItem(itemId: string, receiptId: string): Promise<boolean> {
+    const result = await pool.query(
+      'DELETE FROM receipt_items WHERE id = $1 AND receipt_id = $2',
+      [itemId, receiptId]
+    );
+    return (result.rowCount ?? 0) > 0;
+  },
+
   async updateItem(
     itemId: string,
     receiptId: string,

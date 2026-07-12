@@ -58,6 +58,48 @@ describe('Scenario: Security — authorization and token revocation', () => {
     expect(Number(items[0].total_price)).toBe(3);
   });
 
+  it('can add and delete a receipt item on an owned receipt (#4)', async () => {
+    const store = await storeRepository.create({
+      name: 'Aldi', brand: 'Aldi', address: '9 C St', householdId: alpha.householdId,
+    });
+    const receipt = await receiptRepository.create({
+      userId: alpha.ownerId, householdId: alpha.householdId, storeId: store.id,
+      receiptDate: '2026-04-01', subtotal: 5, tax: 0, total: 5,
+      imageUrl: 'local://d.jpg', rawAiResponse: {},
+    });
+
+    const add = await request(app)
+      .post(`/receipts/${receipt.id}/items`)
+      .set('Authorization', `Bearer ${alpha.ownerToken}`)
+      .send({ nameOnReceipt: 'Forgotten Milk', totalPrice: 3.5 });
+    expect(add.status).toBe(201);
+    const itemId = add.body.id;
+
+    const del = await request(app)
+      .delete(`/receipts/${receipt.id}/items/${itemId}`)
+      .set('Authorization', `Bearer ${alpha.ownerToken}`);
+    expect(del.status).toBe(200);
+
+    const items = await receiptRepository.findItemsByReceiptId(receipt.id);
+    expect(items.find((i) => i.id === itemId)).toBeUndefined();
+  });
+
+  it('cannot add an item to another household\'s receipt (#4/#5)', async () => {
+    const store = await storeRepository.create({
+      name: 'Kwik', brand: 'Kwik', address: '10 D St', householdId: alpha.householdId,
+    });
+    const receipt = await receiptRepository.create({
+      userId: alpha.ownerId, householdId: alpha.householdId, storeId: store.id,
+      receiptDate: '2026-04-02', subtotal: 5, tax: 0, total: 5,
+      imageUrl: 'local://f.jpg', rawAiResponse: {},
+    });
+    const res = await request(app)
+      .post(`/receipts/${receipt.id}/items`)
+      .set('Authorization', `Bearer ${beta.ownerToken}`)
+      .send({ nameOnReceipt: 'Injected', totalPrice: 1 });
+    expect(res.status).toBe(404);
+  });
+
   it('IDOR: cannot read another household\'s members (#6)', async () => {
     const res = await request(app)
       .get(`/households/${beta.householdId}/members`)
